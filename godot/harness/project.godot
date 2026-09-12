@@ -1,0 +1,10 @@
+; Engine configuration file.
+; ikharness Godot IK harness: runs headless, see harness.gd.
+config_version=5
+
+[application]
+config/name="ikharness harness"
+config/features=PackedStringArray("4.7")
+
+[rendering]
+renderer/rendering_method="gl_compatibility"

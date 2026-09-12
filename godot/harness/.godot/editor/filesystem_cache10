@@ -1,0 +1,13 @@
+78098b89c88a74ebe8c20117b8754620
+::res://::1789118889
+harness.gd::GDScript::7373972732761279720::1789118839::0::1::::<>SceneTree<><>0<>0<><>::
+::res://addons/::1789118839
+::res://addons/renik/::1789118839
+LICENSE.txt::TextFile::-1::1789118839::0::1::::<><><>0<>0<><>::
+README.md::TextFile::-1::1789118839::0::1::::<><><>0<>0<><>::
+renik_helper.gd::GDScript::8079987665040684547::1789118839::0::1::::<>RefCounted<><>0<>1<><>::
+renik_limb.gd::GDScript::8535537864644629906::1789118839::0::1::::RenIKLimbModifier3D<>SkeletonModifier3D<><>0<>1<><>::
+renik_placement.gd::GDScript::8274689370080001918::1789118839::0::1::::RenIKPlacement3D<>Node3D<><>0<>1<><>::
+renik_placement_gait.gd::GDScript::607756312155777827::1789118839::0::1::::RenIKGait<>Resource<><>0<>1<><>::
+renik_spine.gd::GDScript::5011832633723362348::1789118839::0::1::::RenIKSpineModifier3D<>SkeletonModifier3D<><>0<>1<><>::
+VENDORED.md::TextFile::-1::1789118839::0::1::::<><><>0<>0<><>::

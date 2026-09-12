@@ -1,0 +1,39 @@
+"""Integration test: the Godot harness solves the mini dataset with RenIK (skips without Godot)."""
+
+import os
+import shutil
+from pathlib import Path
+
+import pytest
+
+from ikharness.dataset import Dataset
+from ikharness.run_godot import evaluate
+
+DATA = Path(__file__).parent / "data"
+
+
+@pytest.fixture(scope="module")
+def godot():
+    exe = os.environ.get("GODOT") or shutil.which("godot") or str(Path.home() / ".local/bin/godot")
+    if not Path(exe).exists():
+        pytest.skip("Godot 4 binary not found (set GODOT)")
+    os.environ["GODOT"] = exe
+    return exe
+
+
+def test_renik_reaches_targets(godot, tmp_path):
+    report, _log = evaluate(DATA / "mini_walk.json", "6pt", ik="renik", settle=6, out_dir=tmp_path)
+    assert report.frames_scored == 3 and report.frames_missing == 0
+    # Hands, feet, hips and head are driven directly by trackers placed on the bones.
+    for bone in ("Hips", "Head", "LeftFoot", "RightFoot"):
+        assert report.bones[bone].angle_mean_deg < 0.1, bone
+    for bone in ("LeftHand", "RightHand"):
+        assert report.bones[bone].position_mean_m < 0.03, bone
+    assert report.body_score_deg < 25.0
+
+
+def test_no_ik_baseline_is_worse(godot, tmp_path):
+    ref, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="none", settle=2, out_dir=tmp_path)
+    ik, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="renik", settle=6, out_dir=tmp_path)
+    assert ik.body_score_deg < ref.body_score_deg
+    assert ik.end_effector_position_mean_m < ref.end_effector_position_mean_m

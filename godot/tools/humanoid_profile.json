@@ -1,0 +1,1856 @@
+{
+  "bones": [
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Root",
+      "parent": "",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "Spine",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          0.75,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Hips",
+      "parent": "Root",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.75,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 1
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          0.850000023841858,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Spine",
+      "parent": "Hips",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          0.950000047683716,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Chest",
+      "parent": "Spine",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          1.05000007152557,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "UpperChest",
+      "parent": "Chest",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "Head",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Neck",
+      "parent": "UpperChest",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 1
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          1.25000011920929,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "group": "Body",
+      "name": "Head",
+      "parent": "Neck",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 2
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0500000007450581,
+          1.40000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "group": "Face",
+      "name": "LeftEye",
+      "parent": "Head",
+      "reference_pose": {
+        "position": [
+          0.0500000007450581,
+          0.150000005960464,
+          0.0
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.0500000007450581,
+          1.40000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "group": "Face",
+      "name": "RightEye",
+      "parent": "Head",
+      "reference_pose": {
+        "position": [
+          -0.0500000007450581,
+          0.150000005960464,
+          0.0
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0,
+          1.30000007152557,
+          0.0500000007450581
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.70710676908493,
+          0.0
+        ]
+      },
+      "group": "Face",
+      "name": "Jaw",
+      "parent": "Head",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0500000007450581
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.70710676908493,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.0500000007450581,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          0.5,
+          -0.5
+        ]
+      },
+      "group": "Body",
+      "name": "LeftShoulder",
+      "parent": "UpperChest",
+      "reference_pose": {
+        "position": [
+          0.0500000007450581,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          0.5,
+          -0.5
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.100000001490116,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "Body",
+      "name": "LeftUpperArm",
+      "parent": "LeftShoulder",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.349999994039536,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          -0.70710676908493,
+          0.70710676908493
+        ]
+      },
+      "group": "Body",
+      "name": "LeftLowerArm",
+      "parent": "LeftUpperArm",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.25,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "LeftMiddleProximal",
+      "global_reference_pose": {
+        "position": [
+          0.600000023841858,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "Body",
+      "name": "LeftHand",
+      "parent": "LeftLowerArm",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.25,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 1
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.625,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.673887252807617,
+          0.673887252807617,
+          0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftThumbMetacarpal",
+      "parent": "LeftHand",
+      "reference_pose": {
+        "position": [
+          -0.025000000372529,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          -0.214186728000641,
+          0.673887252807617,
+          0.214186728000641,
+          0.673887252807617
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.660088002681732,
+          1.15000009536743,
+          0.0498110018670559
+        ],
+        "rotation": [
+          0.673887252807617,
+          0.673887252807617,
+          0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftThumbProximal",
+      "parent": "LeftThumbMetacarpal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0430000014603138,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.695176005363464,
+          1.15000009536743,
+          0.0746220052242279
+        ],
+        "rotation": [
+          0.673887252807617,
+          0.673887252807617,
+          0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftThumbDistal",
+      "parent": "LeftThumbProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0430000014603138,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.675000011920929,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftIndexProximal",
+      "parent": "LeftHand",
+      "reference_pose": {
+        "position": [
+          -0.025000000372529,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.725000023841858,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftIndexIntermediate",
+      "parent": "LeftIndexProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.75,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftIndexDistal",
+      "parent": "LeftIndexIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.675000011920929,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftMiddleProximal",
+      "parent": "LeftHand",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.75,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftMiddleIntermediate",
+      "parent": "LeftMiddleProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.774999976158142,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftMiddleDistal",
+      "parent": "LeftMiddleIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.675000011920929,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftRingProximal",
+      "parent": "LeftHand",
+      "reference_pose": {
+        "position": [
+          0.025000000372529,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.725000023841858,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftRingIntermediate",
+      "parent": "LeftRingProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.75,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftRingDistal",
+      "parent": "LeftRingIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.650000035762787,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftLittleProximal",
+      "parent": "LeftHand",
+      "reference_pose": {
+        "position": [
+          0.0500000007450581,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.700000047683716,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftLittleIntermediate",
+      "parent": "LeftLittleProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.725000023841858,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          0.5,
+          -0.5,
+          0.5
+        ]
+      },
+      "group": "LeftHand",
+      "name": "LeftLittleDistal",
+      "parent": "LeftLittleIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.0500000007450581,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          -0.5,
+          -0.5
+        ]
+      },
+      "group": "Body",
+      "name": "RightShoulder",
+      "parent": "UpperChest",
+      "reference_pose": {
+        "position": [
+          -0.0500000007450581,
+          0.100000001490116,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          -0.5,
+          -0.5
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.100000001490116,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "Body",
+      "name": "RightUpperArm",
+      "parent": "RightShoulder",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.349999994039536,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.70710676908493,
+          0.70710676908493
+        ]
+      },
+      "group": "Body",
+      "name": "RightLowerArm",
+      "parent": "RightUpperArm",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.25,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "RightMiddleProximal",
+      "global_reference_pose": {
+        "position": [
+          -0.600000023841858,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "Body",
+      "name": "RightHand",
+      "parent": "RightLowerArm",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.25,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          -0.70710676908493,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "tail_direction": 1
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.625,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.673887252807617,
+          -0.673887252807617,
+          -0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightThumbMetacarpal",
+      "parent": "RightHand",
+      "reference_pose": {
+        "position": [
+          0.025000000372529,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          -0.214186728000641,
+          -0.673887252807617,
+          -0.214186728000641,
+          0.673887252807617
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.660088002681732,
+          1.15000009536743,
+          0.0498110018670559
+        ],
+        "rotation": [
+          0.673887252807617,
+          -0.673887252807617,
+          -0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightThumbProximal",
+      "parent": "RightThumbMetacarpal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0430000014603138,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.695176005363464,
+          1.15000009536743,
+          0.0746220052242279
+        ],
+        "rotation": [
+          0.673887252807617,
+          -0.673887252807617,
+          -0.214186728000641,
+          0.214186728000641
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightThumbDistal",
+      "parent": "RightThumbProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0430000014603138,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.675000011920929,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightIndexProximal",
+      "parent": "RightHand",
+      "reference_pose": {
+        "position": [
+          0.025000000372529,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.725000023841858,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightIndexIntermediate",
+      "parent": "RightIndexProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.75,
+          1.15000009536743,
+          0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightIndexDistal",
+      "parent": "RightIndexIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.675000011920929,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightMiddleProximal",
+      "parent": "RightHand",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.75,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightMiddleIntermediate",
+      "parent": "RightMiddleProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.774999976158142,
+          1.15000009536743,
+          0.0
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightMiddleDistal",
+      "parent": "RightMiddleIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.675000011920929,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightRingProximal",
+      "parent": "RightHand",
+      "reference_pose": {
+        "position": [
+          -0.025000000372529,
+          0.0750000029802322,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.725000023841858,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightRingIntermediate",
+      "parent": "RightRingProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.75,
+          1.15000009536743,
+          -0.025000000372529
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightRingDistal",
+      "parent": "RightRingIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.650000035762787,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightLittleProximal",
+      "parent": "RightHand",
+      "reference_pose": {
+        "position": [
+          -0.0500000007450581,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.700000047683716,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightLittleIntermediate",
+      "parent": "RightLittleProximal",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.0500000007450581,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.725000023841858,
+          1.15000009536743,
+          -0.0500000007450581
+        ],
+        "rotation": [
+          0.5,
+          -0.5,
+          0.5,
+          0.5
+        ]
+      },
+      "group": "RightHand",
+      "name": "RightLittleDistal",
+      "parent": "RightLittleIntermediate",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.025000000372529,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.100000001490116,
+          0.75,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "LeftUpperLeg",
+      "parent": "Hips",
+      "reference_pose": {
+        "position": [
+          0.100000001490116,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.100000001490116,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "LeftLowerLeg",
+      "parent": "LeftUpperLeg",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.100000001490116,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.70710676908493,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "LeftFoot",
+      "parent": "LeftLowerLeg",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          -0.70710676908493,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          0.100000001490116,
+          0.0,
+          0.150000005960464
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "group": "Body",
+      "name": "LeftToes",
+      "parent": "LeftFoot",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.150000005960464,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.100000001490116,
+          0.75,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "RightUpperLeg",
+      "parent": "Hips",
+      "reference_pose": {
+        "position": [
+          -0.100000001490116,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.100000001490116,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "RightLowerLeg",
+      "parent": "RightUpperLeg",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.100000001490116,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          0.70710676908493,
+          0.0
+        ]
+      },
+      "group": "Body",
+      "name": "RightFoot",
+      "parent": "RightLowerLeg",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.375,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.70710676908493,
+          -0.70710676908493,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    },
+    {
+      "bone_tail": "",
+      "global_reference_pose": {
+        "position": [
+          -0.100000001490116,
+          0.0,
+          0.150000005960464
+        ],
+        "rotation": [
+          0.70710676908493,
+          0.0,
+          0.0,
+          0.70710676908493
+        ]
+      },
+      "group": "Body",
+      "name": "RightToes",
+      "parent": "RightFoot",
+      "reference_pose": {
+        "position": [
+          0.0,
+          0.150000005960464,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "tail_direction": 0
+    }
+  ],
+  "format": "ikharness-humanoid-profile/1",
+  "godot_version": "4.7.2-stable (official)",
+  "root_bone": "Root",
+  "scale_base_bone": "Hips"
+}

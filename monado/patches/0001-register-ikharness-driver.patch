@@ -1,0 +1,137 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5bc230c..d36906b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -383,6 +383,7 @@ option_with_deps(XRT_BUILD_DRIVER_XREAL_AIR "Enable Xreal Air HMD driver" DEPEND
+ option_with_deps(XRT_BUILD_DRIVER_SIMULAVR "Enable simula driver" DEPENDS XRT_HAVE_REALSENSE)
+ option_with_deps(XRT_BUILD_DRIVER_SOLARXR "Enable SolarXR driver" DEPENDS XRT_HAVE_LINUX XRT_MODULE_IPC)
+ option(XRT_BUILD_DRIVER_SIMULATED "Enable simulated driver" ON)
++option(XRT_BUILD_DRIVER_IKHARNESS "Enable IK harness socket driven driver" ON)
+ 
+ option(XRT_BUILD_SAMPLES "Enable compiling sample code implementations that will not be linked into any final targets" ON)
+ set(XRT_IPC_MSG_SOCK_FILENAME monado_comp_ipc CACHE STRING "Service socket filename")
+@@ -473,6 +474,7 @@ list(
+ 	"CONTACTGLOVE"
+ 	"DAYDREAM"
+ 	"SIMULATED"
++	"IKHARNESS"
+ 	"HANDTRACKING"
+ 	"HDK"
+ 	"HYDRA"
+@@ -749,6 +751,7 @@ message(STATUS "#    DRIVER_RIFT_SENSOR:          ${XRT_BUILD_DRIVER_RIFT_SENSOR
+ message(STATUS "#    DRIVER_RIFT_S:               ${XRT_BUILD_DRIVER_RIFT_S}")
+ message(STATUS "#    DRIVER_ROKID:                ${XRT_BUILD_DRIVER_ROKID}")
+ message(STATUS "#    DRIVER_SIMULATED:            ${XRT_BUILD_DRIVER_SIMULATED}")
++message(STATUS "#    DRIVER_IKHARNESS:            ${XRT_BUILD_DRIVER_IKHARNESS}")
+ message(STATUS "#    DRIVER_SIMULAVR:             ${XRT_BUILD_DRIVER_SIMULAVR}")
+ message(STATUS "#    DRIVER_SURVIVE:              ${XRT_BUILD_DRIVER_SURVIVE}")
+ message(STATUS "#    DRIVER_TWRAP:                ${XRT_BUILD_DRIVER_TWRAP}")
+diff --git a/cmake/MonadoSetOptions.cmake b/cmake/MonadoSetOptions.cmake
+index bb8c2cd..06ed3c8 100644
+--- a/cmake/MonadoSetOptions.cmake
++++ b/cmake/MonadoSetOptions.cmake
+@@ -97,6 +97,7 @@ function(monado_set_options)
+ 		XRT_BUILD_DRIVER_RIFT_S
+ 		XRT_BUILD_DRIVER_ROKID
+ 		XRT_BUILD_DRIVER_SIMULATED
++		XRT_BUILD_DRIVER_IKHARNESS
+ 		XRT_BUILD_DRIVER_SIMULAVR
+ 		XRT_BUILD_DRIVER_SOLARXR
+ 		XRT_BUILD_DRIVER_STEAMVR_LIGHTHOUSE
+diff --git a/src/xrt/drivers/CMakeLists.txt b/src/xrt/drivers/CMakeLists.txt
+index a082521..af9c6ee 100644
+--- a/src/xrt/drivers/CMakeLists.txt
++++ b/src/xrt/drivers/CMakeLists.txt
+@@ -72,6 +72,21 @@ if(XRT_BUILD_DRIVER_DEPTHAI)
+ 	list(APPEND ENABLED_DRIVERS depthai)
+ endif()
+ 
++if(XRT_BUILD_DRIVER_IKHARNESS)
++	add_library(
++		drv_ikharness STATIC
++		ikharness/ikh_controller.c
++		ikharness/ikh_hmd.c
++		ikharness/ikh_hub.c
++		ikharness/ikh_interface.h
++		ikharness/ikh_internal.h
++		ikharness/ikh_protocol.h
++		ikharness/ikh_tracker.c
++		)
++	target_link_libraries(drv_ikharness PRIVATE xrt-interfaces aux_util aux_os aux_math)
++	list(APPEND ENABLED_HEADSET_DRIVERS ikharness)
++endif()
++
+ if(XRT_BUILD_DRIVER_SIMULATED)
+ 	add_library(
+ 		drv_simulated STATIC simulated/simulated_controller.c simulated/simulated_hmd.c
+diff --git a/src/xrt/targets/common/CMakeLists.txt b/src/xrt/targets/common/CMakeLists.txt
+index f3f46c9..d6a1ad5 100644
+--- a/src/xrt/targets/common/CMakeLists.txt
++++ b/src/xrt/targets/common/CMakeLists.txt
+@@ -60,6 +60,10 @@ if(XRT_BUILD_DRIVER_SIMULATED)
+ 	target_sources(target_lists PRIVATE target_builder_simulated.c)
+ endif()
+ 
++if(XRT_BUILD_DRIVER_IKHARNESS)
++	target_sources(target_lists PRIVATE target_builder_ikharness.c)
++endif()
++
+ if(XRT_BUILD_DRIVER_SIMULAVR)
+ 	target_sources(target_lists PRIVATE target_builder_simulavr.c)
+ endif()
+@@ -114,6 +118,10 @@ if(XRT_BUILD_DRIVER_SIMULATED)
+ 	target_link_libraries(target_lists PRIVATE drv_simulated)
+ endif()
+ 
++if(XRT_BUILD_DRIVER_IKHARNESS)
++	target_link_libraries(target_lists PRIVATE drv_ikharness)
++endif()
++
+ if(XRT_BUILD_DRIVER_HDK)
+ 	target_link_libraries(target_lists PRIVATE drv_hdk)
+ endif()
+diff --git a/src/xrt/targets/common/target_builder_interface.h b/src/xrt/targets/common/target_builder_interface.h
+index e36c1dd..5074ab6 100644
+--- a/src/xrt/targets/common/target_builder_interface.h
++++ b/src/xrt/targets/common/target_builder_interface.h
+@@ -63,6 +63,10 @@ extern "C" {
+ #define T_BUILDER_SIMULATED
+ #endif
+ 
++#if defined(XRT_BUILD_DRIVER_IKHARNESS) || defined(XRT_DOXYGEN)
++#define T_BUILDER_IKHARNESS
++#endif
++
+ #if defined(XRT_BUILD_DRIVER_SIMULAVR) || defined(XRT_DOXYGEN)
+ #define T_BUILDER_SIMULAVR
+ #endif
+@@ -166,6 +170,14 @@ struct xrt_builder *
+ t_builder_simulated_create(void);
+ #endif
+ 
++#ifdef T_BUILDER_IKHARNESS
++/*!
++ * Builder for @ref drv_ikharness devices.
++ */
++struct xrt_builder *
++t_builder_ikharness_create(void);
++#endif
++
+ 
+ #ifdef T_BUILDER_SIMULAVR
+ /*!
+diff --git a/src/xrt/targets/common/target_lists.c b/src/xrt/targets/common/target_lists.c
+index 78efb9b..7453447 100644
+--- a/src/xrt/targets/common/target_lists.c
++++ b/src/xrt/targets/common/target_lists.c
+@@ -112,6 +112,10 @@
+  * Builders
+  */
+ xrt_builder_create_func_t target_builder_list[] = {
++#ifdef T_BUILDER_IKHARNESS // Highest: socket driven test devices override real hardware.
++    t_builder_ikharness_create,
++#endif // T_BUILDER_IKHARNESS
++
+ #ifdef T_BUILDER_QWERTY // High up to override any real hardware.
+     t_builder_qwerty_create,
+ #endif // T_BUILDER_QWERTY

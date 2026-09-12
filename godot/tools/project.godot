@@ -1,0 +1,10 @@
+; Engine configuration file.
+; Headless tool project for ikharness (profile dump, dataset export).
+config_version=5
+
+[application]
+config/name="ikharness tools"
+config/features=PackedStringArray("4.7")
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
