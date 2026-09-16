@@ -37,3 +37,18 @@ def test_no_ik_baseline_is_worse(godot, tmp_path):
     ik, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="renik", settle=6, out_dir=tmp_path)
     assert ik.body_score_deg < ref.body_score_deg
     assert ik.end_effector_position_mean_m < ref.end_effector_position_mean_m
+
+
+def test_builtin_adapter_reaches_targets(godot, tmp_path):
+    report, _log = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path)
+    assert report.frames_scored == 3 and report.frames_missing == 0
+    for bone in ("Hips", "Head", "LeftHand", "RightHand", "LeftFoot", "RightFoot"):
+        assert report.bones[bone].angle_mean_deg < 0.1, bone
+        assert report.bones[bone].position_mean_m < 0.02, bone
+    assert report.body_score_deg < 25.0
+
+
+def test_input_perturbation_lowers_score(godot, tmp_path):
+    base, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path)
+    worse, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path, perturb="feet_offset:0.2")
+    assert worse.weighted_score_deg > base.weighted_score_deg + 1.0

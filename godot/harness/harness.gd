@@ -54,6 +54,8 @@ func _init():
 	match String(opts["ik"]):
 		"renik":
 			adapter = RenIKAdapter.new()
+		"builtin":
+			adapter = BuiltinAdapter.new()
 		"none":
 			adapter = IKAdapter.new()
 		_:
@@ -176,9 +178,21 @@ func step() -> void:
 	adapter.apply_frame(self, frames[frame_index])
 	settle_left = max(1, int(opts["settle"]))
 
+func rest_block() -> Dictionary:
+	var bones: Array = []
+	for b in humanoid_bone_ids:
+		var g := skeleton.get_bone_global_rest(b)
+		var q := g.basis.get_rotation_quaternion().normalized()
+		bones.append({
+			"name": skeleton.get_bone_name(b),
+			"rest_global": {"position": [g.origin.x, g.origin.y, g.origin.z], "rotation": [q.x, q.y, q.z, q.w]},
+		})
+	return {"convention": test["skeleton"].get("convention", ""), "bones": bones}
+
 func finish() -> void:
 	var doc := {
 		"format": RESULT_FORMAT,
+		"skeleton": rest_block(),
 		"implementation": adapter.implementation_name(),
 		"tracker_set": test.get("tracker_set", ""),
 		"roles": test.get("roles", []),
@@ -273,3 +287,143 @@ class RenIKAdapter extends IKAdapter:
 		for role in targets.keys():
 			if harness.has_tracker(role):
 				targets[role].global_transform = harness.bone_target_xform(frame, role)
+
+
+# Godot's built-in modifiers: FABRIK3D for the spine chain, TwoBoneIK3D for
+# arms and legs (pole nodes from elbow/knee trackers when present, else a
+# heuristic behind the elbow / in front of the knee), a custom modifier that
+# places the hips from the waist tracker (or under the head), and a final
+# modifier that copies tracker orientations onto the end effectors.
+class BuiltinAdapter extends IKAdapter:
+	var targets := {}
+	var poles := {}
+	var roles: Array = []
+	var hips_mod: HipsModifier
+
+	func implementation_name() -> String:
+		return "builtin"
+
+	func _marker(root: Node3D, name: String) -> Node3D:
+		var m := Marker3D.new()
+		m.name = name
+		root.add_child(m)
+		return m
+
+	func setup(root: Node3D, skel: Skeleton3D, test: Dictionary) -> void:
+		roles = test["roles"]
+		for role in ["head", "waist", "chest", "left_hand", "right_hand", "left_foot", "right_foot", "left_elbow", "right_elbow", "left_knee", "right_knee"]:
+			targets[role] = _marker(root, role.capitalize().replace(" ", "") + "Target")
+			targets[role].visible = roles.has(role)
+		for limb in ["left_hand", "right_hand", "left_foot", "right_foot"]:
+			poles[limb] = _marker(root, limb.capitalize().replace(" ", "") + "Pole")
+
+		# 1. Hips.
+		hips_mod = HipsModifier.new()
+		hips_mod.name = "Hips"
+		hips_mod.target = targets["waist"]
+		hips_mod.head_target = targets["head"]
+		hips_mod.hips_bone = skel.find_bone("Hips")
+		var head_rest := skel.get_bone_global_rest(skel.find_bone("Head")).origin
+		var hips_rest := skel.get_bone_global_rest(hips_mod.hips_bone).origin
+		hips_mod.rest_offset_from_head = hips_rest - head_rest
+		skel.add_child(hips_mod)
+
+		# 2. Spine chain Spine -> Head reaching the head target.
+		var spine := FABRIK3D.new()
+		spine.name = "Spine"
+		spine.max_iterations = 16
+		spine.min_distance = 0.0005
+		spine.set_setting_count(1)
+		spine.set_root_bone_name(0, &"Spine")
+		spine.set_end_bone_name(0, &"Head")
+		skel.add_child(spine)
+		spine.set_target_node(0, spine.get_path_to(targets["head"]))
+
+		# 3. Limbs.
+		var limbs := TwoBoneIK3D.new()
+		limbs.name = "Limbs"
+		var specs := [
+			["left_hand", &"LeftUpperArm", &"LeftLowerArm", &"LeftHand"],
+			["right_hand", &"RightUpperArm", &"RightLowerArm", &"RightHand"],
+			["left_foot", &"LeftUpperLeg", &"LeftLowerLeg", &"LeftFoot"],
+			["right_foot", &"RightUpperLeg", &"RightLowerLeg", &"RightFoot"],
+		]
+		var active := []
+		for sp in specs:
+			if roles.has(sp[0]):
+				active.append(sp)
+		limbs.set_setting_count(active.size())
+		skel.add_child(limbs)
+		for i in range(active.size()):
+			var sp: Array = active[i]
+			limbs.set_root_bone_name(i, sp[1])
+			limbs.set_middle_bone_name(i, sp[2])
+			limbs.set_end_bone_name(i, sp[3])
+			limbs.set_target_node(i, limbs.get_path_to(targets[sp[0]]))
+			limbs.set_pole_node(i, limbs.get_path_to(poles[sp[0]]))
+
+		# 4. End effector orientations from the trackers.
+		var ee := EndEffectorRotationModifier.new()
+		ee.name = "EndEffectors"
+		for pair in [["head", "Head"], ["left_hand", "LeftHand"], ["right_hand", "RightHand"], ["left_foot", "LeftFoot"], ["right_foot", "RightFoot"]]:
+			if roles.has(pair[0]):
+				ee.pairs.append([skel.find_bone(pair[1]), targets[pair[0]]])
+		skel.add_child(ee)
+
+	func apply_frame(h: SceneTree, frame: Dictionary) -> void:
+		var harness = h
+		for role in targets.keys():
+			if harness.has_tracker(role):
+				targets[role].global_transform = harness.bone_target_xform(frame, role)
+		# Pole nodes: elbow/knee trackers when tracked, otherwise behind the elbows and in front of the knees.
+		var pole_roles := {"left_hand": "left_elbow", "right_hand": "right_elbow", "left_foot": "left_knee", "right_foot": "right_knee"}
+		for limb in poles.keys():
+			var pr: String = pole_roles[limb]
+			if harness.has_tracker(pr):
+				poles[limb].global_position = harness.bone_target_xform(frame, pr).origin
+			elif harness.has_tracker(limb):
+				var t: Vector3 = targets[limb].global_position
+				if limb.ends_with("hand"):
+					poles[limb].global_position = t + Vector3(0.0, -0.1, -0.5)
+				else:
+					poles[limb].global_position = t + Vector3(0.0, 0.5, 0.6)
+
+
+class HipsModifier extends SkeletonModifier3D:
+	var target: Node3D
+	var head_target: Node3D
+	var hips_bone: int = -1
+	var rest_offset_from_head: Vector3
+
+	func _process_modification() -> void:
+		var s := get_skeleton()
+		if s == null or hips_bone < 0:
+			return
+		var inv := s.global_transform.affine_inverse()
+		if target != null and target.visible:
+			s.set_bone_global_pose(hips_bone, (inv * target.global_transform).orthonormalized())
+		elif head_target != null and head_target.visible:
+			var head := (inv * head_target.global_transform).orthonormalized()
+			var fwd: Vector3 = head.basis * Vector3(0, 0, 1)
+			fwd.y = 0.0
+			if fwd.length() < 1e-4:
+				fwd = Vector3(0, 0, 1)
+			var yaw := Basis.looking_at(-fwd.normalized(), Vector3.UP)
+			s.set_bone_global_pose(hips_bone, Transform3D(yaw, head.origin + yaw * rest_offset_from_head))
+
+
+class EndEffectorRotationModifier extends SkeletonModifier3D:
+	var pairs: Array = []
+
+	func _process_modification() -> void:
+		var s := get_skeleton()
+		if s == null:
+			return
+		var inv := s.global_transform.affine_inverse()
+		for p in pairs:
+			var node: Node3D = p[1]
+			if node == null or not node.visible:
+				continue
+			var g := s.get_bone_global_pose(p[0])
+			var t := (inv * node.global_transform).orthonormalized()
+			s.set_bone_global_pose(p[0], Transform3D(t.basis, g.origin))
