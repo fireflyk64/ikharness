@@ -53,14 +53,15 @@ godot --headless --path godot/harness --import    # once: build the harness proj
 .venv/bin/python -m ikharness.replay --dataset out/datasets/walk.json --tracker-set 6pt --verify   # into Monado
 ```
 
-First numbers (V-Sekai idle/walk clips on the V-Sekai test avatar, 45 frames,
-mean angular error over 21 body bones):
+Current suite numbers (`ikh suite`, `suites/default.json`: idle/walk clips and a 46 s mocap clip on the
+V-Sekai test avatar, 6 and 11 point tracking; weighted mean angular error over 21 body bones, lower is
+better; `quality` is `100·exp(-deg/25)`):
 
-| Implementation | Trackers | Body score | Weighted | End effectors |
-|---|---|---|---|---|
-| RenIK (Godot) | 11 point | 11.2 deg | 12.3 deg | 0.5 cm |
-| RenIK (Godot) | 6 point | 13.2 deg | 14.3 deg | 0.4 cm |
-| none (rest pose) | 6 point | 38.3 deg | 39.3 deg | 36.5 cm |
+| Implementation | final (deg) | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt |
+|---|---|---|---|---|---|---|
+| builtin (Godot TwoBoneIK3D + FABRIK3D) | **13.51** | 58.2 | 12.84 | 11.24 | 15.35 | 13.46 |
+| renik | **17.57** | 49.5 | 14.26 | 12.33 | 21.36 | 21.87 |
+| none (rest pose) | **48.76** | 14.2 | 39.25 | 39.25 | 58.26 | 58.26 |
 
 ## Conventions
 
