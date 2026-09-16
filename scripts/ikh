@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Wrapper for the ikharness command line: sets the environment and runs the venv Python.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$ROOT/.venv/bin/python"
+[ -x "$PY" ] || { echo "no venv at $ROOT/.venv; run: python3 -m venv .venv && .venv/bin/pip install -e '.[openxr,test]'" >&2; exit 1; }
+
+# Godot 4.7 binary.
+if [ -z "${GODOT:-}" ]; then
+    for c in "$HOME/.local/bin/godot" "$(command -v godot 2>/dev/null || true)"; do
+        [ -n "$c" ] && [ -x "$c" ] && export GODOT="$c" && break
+    done
+fi
+# Monado runtime for OpenXR clients (probe, replay --verify).
+export MONADO_PREFIX="${MONADO_PREFIX:-$HOME/.local/monado-ikharness}"
+export XR_RUNTIME_JSON="${XR_RUNTIME_JSON:-$MONADO_PREFIX/share/openxr/1/openxr_monado.json}"
+if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
+    export XDG_RUNTIME_DIR="/tmp/ikharness-runtime-$(id -u)"
+    mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
+fi
+export PYTHONUNBUFFERED=1
+exec "$PY" -m ikharness.ikh "$@"
