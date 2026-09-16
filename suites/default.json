@@ -1,0 +1,38 @@
+{
+  "name": "default",
+  "description": "V-Sekai idle/walk clips and the 46 s mocap clip on the V-Sekai test avatar, 6 and 11 point tracking.",
+  "settle": 8,
+  "models": {
+    "vsekai_humanoid_08": "~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
+  },
+  "datasets": {
+    "vsk_walk": {
+      "path": "out/datasets/vsk_walk.json",
+      "build": {
+        "model": "vsekai_humanoid_08",
+        "anims": [
+          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Idle.tres",
+          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Walk_Forward.tres",
+          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Walk_Left.tres"
+        ],
+        "frames": 15,
+        "hips_mode": "ratio:0.995"
+      }
+    },
+    "mocap08": {
+      "path": "out/datasets/mocap08.json",
+      "build": {
+        "model": "vsekai_humanoid_08",
+        "anims": ["~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"],
+        "frames": 40,
+        "hips_mode": "ratio:0.97"
+      }
+    }
+  },
+  "entries": [
+    {"dataset": "vsk_walk", "tracker_set": "6pt", "weight": 2.0},
+    {"dataset": "vsk_walk", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "mocap08", "tracker_set": "6pt", "weight": 2.0},
+    {"dataset": "mocap08", "tracker_set": "11pt", "weight": 1.0}
+  ]
+}

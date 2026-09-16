@@ -1,8 +1,10 @@
 """Scoring an IK result against the reference poses.
 
-Both inputs are frames of global bone transforms on the same skeleton. Per bone
-and frame the score is the angular distance (degrees) between the reference
-and result orientations; positional error (meters) is reported as well, which
+Both inputs are frames of global bone transforms. Per bone and frame the score
+is the angular distance (degrees) between the *rest-relative* orientations
+``pose × rest⁻¹`` of reference and result, each side using its own rig's rest
+(T-pose) orientation, so rigs with different bone axes compare equal when they
+strike the same pose. Positional error (meters) is reported as well, which
 matters for end effectors and for hips placement.
 
 Aggregates: mean, median, 95th percentile per bone, an overall body score
@@ -21,7 +23,7 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import numpy as np
 
 from .dataset import BODY_BONES, Dataset, Frame
-from .mathutil import quat_angle
+from .mathutil import Transform, quat_angle, quat_inv, quat_mul
 
 # Larger segments dominate how an avatar "looks"; fingers are not scored at all.
 DEFAULT_WEIGHTS: Dict[str, float] = {
@@ -97,10 +99,22 @@ def score(
     tracker_set: str = "unknown",
     bones: Optional[Iterable[str]] = None,
     weights: Optional[Dict[str, float]] = None,
+    result_rest: Optional[Dict[str, Transform]] = None,
 ) -> ScoreReport:
-    """Score ``results[i]`` against ``reference.frames[i]``; ``None`` entries count as missing."""
+    """Score ``results[i]`` against ``reference.frames[i]``; ``None`` entries count as missing.
+
+    ``result_rest`` is the rig-under-test's global T-pose per bone; when omitted the
+    reference rest is assumed (same rig).
+    """
     weights = weights or DEFAULT_WEIGHTS
     bone_list = [b for b in (bones or reference.body_bones()) if reference.skeleton.has(b)]
+    ref_rest_inv = {b: quat_inv(reference.skeleton.bones[b].rest_global.rotation) for b in bone_list}
+    res_rest_inv = {}
+    for b in bone_list:
+        if result_rest and b in result_rest:
+            res_rest_inv[b] = quat_inv(result_rest[b].rotation)
+        else:
+            res_rest_inv[b] = ref_rest_inv[b]
     angles: Dict[str, List[float]] = {b: [] for b in bone_list}
     positions: Dict[str, List[float]] = {b: [] for b in bone_list}
     per_frame: List[float] = []
@@ -113,7 +127,9 @@ def score(
         for b in bone_list:
             if b not in res.bones:
                 continue
-            a = math.degrees(quat_angle(ref.bones[b].rotation, res.bones[b].rotation))
+            d_ref = quat_mul(ref.bones[b].rotation, ref_rest_inv[b])
+            d_res = quat_mul(res.bones[b].rotation, res_rest_inv[b])
+            a = math.degrees(quat_angle(d_ref, d_res))
             p = float(np.linalg.norm(ref.bones[b].position - res.bones[b].position))
             angles[b].append(a)
             positions[b].append(p)

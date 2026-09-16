@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from .dataset import Dataset, Frame
 from .mathutil import Transform
@@ -25,8 +25,12 @@ TRACKERS_FORMAT = "ikharness-trackers/1"
 RESULT_FORMAT = "ikharness-result/1"
 
 
+#: Hook that may modify the placed trackers of one frame: (trackers, frame_index) -> trackers.
+TrackerHook = Callable[[Dict[str, Transform], int], Dict[str, Transform]]
+
+
 def build_test_file(dataset: Dataset, tracker_set: str, path, rules: Optional[Dict[str, TrackerRule]] = None,
-                    dataset_path: str = "") -> dict:
+                    dataset_path: str = "", perturb: Optional[TrackerHook] = None, perturb_name: str = "") -> dict:
     roles = TRACKER_SETS[tracker_set] if tracker_set in TRACKER_SETS else tracker_set.split(",")
     rules = rules or rules_for(dataset.skeleton)
     rules_out = {}
@@ -39,6 +43,8 @@ def build_test_file(dataset: Dataset, tracker_set: str, path, rules: Optional[Di
     frames = []
     for i, f in enumerate(dataset.frames):
         tr = place_trackers(f, dataset.skeleton, roles, rules)
+        if perturb is not None:
+            tr = perturb(tr, i)
         frames.append({
             "index": i,
             "time": f.time,
@@ -52,6 +58,7 @@ def build_test_file(dataset: Dataset, tracker_set: str, path, rules: Optional[Di
         "roles": roles,
         "skeleton": dataset.skeleton.to_dict(),
         "rules": rules_out,
+        "perturbation": perturb_name,
         "frames": frames,
     }
     Path(path).write_text(json.dumps(doc))
@@ -64,6 +71,8 @@ class HarnessResult:
     tracker_set: str
     frames: List[Optional[Frame]]
     meta: dict
+    #: the harness rig's global T-pose orientation per bone (empty if the file has none)
+    rest: Dict[str, Transform] = None
 
     @staticmethod
     def load(path) -> "HarnessResult":
@@ -77,9 +86,15 @@ class HarnessResult:
             else:
                 frames.append(Frame(source=0, time=float(f.get("time", 0.0)),
                                     bones={n: Transform(t["position"], t["rotation"]) for n, t in f["bones"].items()}))
+        rest: Dict[str, Transform] = {}
+        for b in d.get("skeleton", {}).get("bones", []):
+            rg = b.get("rest_global")
+            if rg:
+                rest[b["name"]] = Transform(rg["position"], rg["rotation"])
         return HarnessResult(
             implementation=d.get("implementation", "unknown"),
             tracker_set=d.get("tracker_set", "unknown"),
             frames=frames,
-            meta={k: v for k, v in d.items() if k not in ("frames",)},
+            meta={k: v for k, v in d.items() if k not in ("frames", "skeleton")},
+            rest=rest,
         )
