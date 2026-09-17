@@ -71,8 +71,11 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] ShaderMotion reference codec in Python (goal 6, step 1): colors ↔ numbers, hips float
       scheme, frame layout, images; validated on a genuine Unity-encoded frame.
       (`docs/shadermotion.md`)
-- [ ] ShaderMotion pose layer: bone rotations ↔ swing-twist angles in Unity's calibrated axes
-      (neutral pose, pre/post rotations, limit signs), round trip on dataset frames.
+- [x] ShaderMotion pose layer: bone rotations ↔ swing-twist angles (godot-humanoid tables),
+      whole frames ↔ slots with projection residuals. Round-trip floor 1.6° (walk) / 2.7°
+      (mocap) weighted; genuine frame reconstructs to a plausible standing pose.
+- [ ] Score "through ShaderMotion": option to pass the reference through the same round trip so
+      the format's floor cancels; `ikh shadermotion encode|decode` for images and folders.
 - [ ] ShaderMotion in Godot (goal 6): encoder shader on the harness avatar + GDScript decoder
       (from `V-Sekai/godot-shader-motion`), checked against the Python codec. Needs a real
       renderer (OpenGL on the X display), so measure memory under the guard first.

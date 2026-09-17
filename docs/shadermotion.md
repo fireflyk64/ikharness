@@ -5,8 +5,8 @@ shader that encodes each bone's rotation into screen pixels (ShaderMotion), capt
 frames (screenshots or video), and decoding them back into bone rotations that the scorer
 understands. Godot first, then Unity.
 
-**State.** Codec layer done and validated against a genuine frame; pose layer, Godot shader
-and capture are next.
+**State.** Codec and pose layers done in Python and validated against a genuine
+Unity-encoded frame; the Godot shader encoder and the capture path are next.
 
 ### What exists: `python/ikharness/shadermotion/codec.py`
 
@@ -32,6 +32,35 @@ reference decoder, meant as the oracle for the Godot and Unity shaders:
 `tests/data/shadermotion/upstream_frame.png`, a frame from the original Unity encoder: hips
 at (0.00, 1.03, 0.21) m, avatar scale 0.894, rotation columns orthogonal to 0.0005, small
 spine angles, bent left arm and knee. That is independent evidence the decoder is right.
+
+### What exists: `python/ikharness/shadermotion/humanoid.py` (pose layer)
+
+`local_rotation = preQ · swing_twist(sign · angles) · postQ⁻¹`, with the tables dumped from
+godot-humanoid's `human_trait.gd` (`godot/tools/dump_human_trait.gd` → `human_trait.json`,
+Apache-2.0, see `NOTICE.md`). `frame_to_slots` turns a dataset frame into slot values (hips:
+world position in meters and rotation columns, mirrored in X for Unity's handedness);
+`slots_to_frame` rebuilds a frame by forward kinematics on a given skeleton.
+
+Things worth knowing:
+
+* **Zero is not the T-pose.** Angles are relative to Mecanim's neutral "motorcycle" pose: a
+  straight knee or elbow reads **+80°**, a T-pose upper leg +30°, the spine 0°.
+* **Not every rotation fits.** Hinges have no swing about Y, hands no twist, fingers two
+  axes. Encoding projects onto what the joint can express, reports the residual and hands it
+  to the children (Mecanim's twist distribution).
+* **Measurement floor.** Reference → slots → 8-bit image → slots → pose costs
+  **1.6° weighted on the walk set and 2.7° on the mocap set** (end effectors 0.9 / 2.2 cm),
+  almost all of it in the hands (7–12°: wrist twist has nowhere to go) and forearms. IK
+  implementations differ by 13–22°, so the readout is usable. When scoring an application
+  through ShaderMotion, pass the *reference* through the same round trip first so the floor
+  cancels.
+* **Tables are avatar specific.** They were exported from one avatar; a perfectly straight
+  profile leg sits 1.5° off its knee hinge plane. A Unity export for our own test avatar
+  would remove that.
+* **Genuine frame.** The Unity-encoded test frame reconstructs to a standing VR user, legs
+  straight and symmetric, left limbs on the left, elbows behind the torso and both hands
+  raised in front of the chest (elbows flexed ~140°). That confirms signs and handedness for
+  limbs; the hips mirror convention still deserves a check against a frame of a *known* pose.
 
 ### Candidates found upstream
 
