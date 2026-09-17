@@ -68,9 +68,14 @@ test it, and how to see whether it is working (the feedback loop).
       OpenXR layer (marked ALWAYS_DISABLED upstream). (`docs/godot-openxr.md`)
 - [ ] Godot as preprocessor (goal 5): `ikh dataset export-retargeted` writes retargeted
       animations (Godot `.res`, glTF) with the standard rest, for OpenXR/Unity consumers.
-- [ ] ShaderMotion Godot port (goal 6): evaluate `V-Sekai/godot-shader-motion` (fork of
-      vr-voyage/shadermeowmeow, GDScript decoder) and `shader-motion-navy-lead-ostrich`;
-      vendor, get encode + decode running headlessly on a SubViewport. (`docs/shadermotion.md`)
+- [x] ShaderMotion reference codec in Python (goal 6, step 1): colors ↔ numbers, hips float
+      scheme, frame layout, images; validated on a genuine Unity-encoded frame.
+      (`docs/shadermotion.md`)
+- [ ] ShaderMotion pose layer: bone rotations ↔ swing-twist angles in Unity's calibrated axes
+      (neutral pose, pre/post rotations, limit signs), round trip on dataset frames.
+- [ ] ShaderMotion in Godot (goal 6): encoder shader on the harness avatar + GDScript decoder
+      (from `V-Sekai/godot-shader-motion`), checked against the Python codec. Needs a real
+      renderer (OpenGL on the X display), so measure memory under the guard first.
 - [ ] Capture path (goal 7): per-frame screen capture and video recording (MovieWriter / PNG
       sequence) plus decode back to bone rotations in Godot; round-trip test against the
       dataset. (`docs/shadermotion.md`)

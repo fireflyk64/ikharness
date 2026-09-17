@@ -5,7 +5,35 @@ shader that encodes each bone's rotation into screen pixels (ShaderMotion), capt
 frames (screenshots or video), and decoding them back into bone rotations that the scorer
 understands. Godot first, then Unity.
 
-**State.** Planned. Candidates found:
+**State.** Codec layer done and validated against a genuine frame; pose layer, Godot shader
+and capture are next.
+
+### What exists: `python/ikharness/shadermotion/codec.py`
+
+A pure-numpy reference of the format, from `shader_motion_specification` and lox9973's
+reference decoder, meant as the oracle for the Godot and Unity shaders:
+
+* **Number ↔ two colors.** A value in [-1, 1] rides a continuous base-3 Gray curve through
+  the 6-cube (729 levels, linear between levels), written as G,R,B,G,R,B. Exact round trip;
+  after 8-bit color quantization the error is below 0.01° for angles.
+* **Wide float in two slots** (hips position / 2): `hi` and `lo`, where `lo` reflects at the
+  ends of each block so the pair is continuous. Inside ±1 (±2 m) `hi` is exactly 0, so sloppy
+  decoders may ignore it. Neither upstream repo ships an encoder for this; ours is derived
+  from the reference decoder and round-trips to 1e-9.
+* **Layout.** 80 × 45 squares, 40 × 45 slots indexed column-major; one avatar uses three slot
+  columns (slots 0..129): hips (position hi/lo, rotation matrix y and z columns scaled so
+  `|y|/|z|` is the avatar scale), then swing-twist XYZ angles / 180° per bone, fingers YZ+Z+Z,
+  eyes YZ, toes Z. Further avatars are "layers", odd layers mirrored from the right edge.
+* **Images.** `encode_frame` / `decode_frame` on numpy arrays at any resolution; squares are
+  sampled over their central half to tolerate scaling and compression bleed; cropped strips
+  decode with `grid_w`.
+
+`tests/test_shadermotion_codec.py` (11 tests) includes decoding
+`tests/data/shadermotion/upstream_frame.png`, a frame from the original Unity encoder: hips
+at (0.00, 1.03, 0.21) m, avatar scale 0.894, rotation columns orthogonal to 0.0005, small
+spine angles, bent left arm and knee. That is independent evidence the decoder is right.
+
+### Candidates found upstream
 
 | Repository | What | Notes |
 |---|---|---|
@@ -16,9 +44,12 @@ understands. Godot first, then Unity.
 
 ## Plan
 
-1. **Spec first.** Extract the encoding from `shader_motion_specification/` and
-   `MotionDecoder.js`: layout of the tiles, how a rotation is split (swing-twist), value
-   ranges, the bone list (Unity Mecanim order) and the hips position encoding.
+1. ~~**Spec first.**~~ Done, see above.
+1b. **Pose layer** (next): swing-twist angles live in Unity's *calibrated* bone axes relative
+   to the Mecanim neutral pose (`bone_rotation.md` has the axis table; the Godot port's
+   `core/humanoid/human_trait.gd` and `transform_util.gd` carry pre/post rotations and limit
+   signs). Implement `rotations → angles` and back in Python, test the round trip on dataset
+   frames, and express the result as rest-relative deltas for the scorer.
 2. **Godot encoder.** A Godot shader (or CPU GDScript reference encoder) that, given the
    harness skeleton, writes the ShaderMotion tile image into a `SubViewport`. Verify with
    the vendored decoder: encode → decode must reproduce the input rotations. This is the

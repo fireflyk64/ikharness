@@ -16,7 +16,8 @@ ikh = "ikharness.ikh:main"
 
 [project.optional-dependencies]
 openxr = ["pyopenxr>=1.1"]
-test = ["pytest>=7"]
+shadermotion = ["pillow>=10"]
+test = ["pytest>=7", "pillow>=10"]
 
 [tool.setuptools.packages.find]
 where = ["python"]
