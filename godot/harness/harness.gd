@@ -8,6 +8,8 @@
 #   godot --headless --path godot/harness -s harness.gd -- \
 #       --trackers /abs/test.json --out /abs/result.json [--ik renik] [--settle 8] [--max-fps 240]
 #       [--shadermotion-dir /abs/dir]   also write each solved pose as a ShaderMotion PNG
+#       [--shadermotion-gpu-dir /abs/dir]  the same through the recorder mesh + shader (needs a renderer,
+#                                          e.g. xvfb-run godot --display-driver x11 --rendering-driver opengl3)
 #
 # --settle  number of processed frames per test pose before the pose is read,
 #           so iterative / smoothed solvers converge.
@@ -17,8 +19,9 @@ const TRACKERS_FORMAT := "ikharness-trackers/1"
 const RESULT_FORMAT := "ikharness-result/1"
 
 const ShaderMotionEncoder := preload("res://shadermotion_encoder.gd")
+const ShaderMotionGPU := preload("res://shadermotion_gpu.gd")
 
-var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": ""}
+var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": "", "shadermotion-gpu-dir": ""}
 
 var test: Dictionary
 var skeleton: Skeleton3D
@@ -54,6 +57,14 @@ func _init():
 	skeleton = build_skeleton(test["skeleton"])
 	scene_root.add_child(skeleton)
 	skeleton.skeleton_updated.connect(_on_skeleton_updated)
+	if opts["shadermotion-gpu-dir"] != "":
+		if DisplayServer.get_name() == "headless":
+			printerr("harness: --shadermotion-gpu-dir needs a renderer; run without --headless (xvfb-run ... --rendering-driver opengl3)")
+			quit(1)
+			return
+		ShaderMotionGPU.build_recorder(skeleton, float(test["skeleton"]["hips_height"]))
+		gpu_viewport = ShaderMotionGPU.make_viewport(Vector2i(640, 360))
+		get_root().add_child(gpu_viewport)
 
 	match String(opts["ik"]):
 		"renik":
@@ -143,6 +154,7 @@ func has_tracker(role: String) -> bool:
 # for the current targets have elapsed.
 var last_captured: Dictionary = {}
 var last_globals: Dictionary = {}
+var gpu_viewport: SubViewport = null
 
 func _on_skeleton_updated() -> void:
 	var bones := {}
@@ -166,6 +178,15 @@ func write_shadermotion_frame(index: int) -> void:
 	var img := ShaderMotionEncoder.slots_to_image(slots)
 	img.save_png(dir.path_join("frame_%05d.png" % index))
 
+# The SubViewport holds the render of the previous frame, which used the pose captured in
+# last_globals (targets are constant while settling), so image and JSON describe one pose.
+func write_shadermotion_gpu_frame(index: int) -> void:
+	if gpu_viewport == null:
+		return
+	var img := gpu_viewport.get_texture().get_image()
+	img.convert(Image.FORMAT_RGB8)
+	img.save_png(String(opts["shadermotion-gpu-dir"]).path_join("frame_%05d.png" % index))
+
 func read_global_poses() -> Dictionary:
 	return last_captured
 
@@ -180,6 +201,7 @@ func step() -> void:
 			var bones := read_global_poses()
 			results.append({"index": frame["index"], "time": frame.get("time", 0.0), "bones": bones})
 			write_shadermotion_frame(int(frame["index"]))
+			write_shadermotion_gpu_frame(int(frame["index"]))
 			if frame_index == 0 and OS.get_environment("IKH_DEBUG") != "":
 				for role in test["roles"]:
 					var rule: Dictionary = test["rules"][role]

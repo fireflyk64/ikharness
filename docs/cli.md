@@ -10,7 +10,10 @@ ikh status                                   what is installed / running / built
 ikh dataset build --model M --anim A ...     export a dataset (see docs/datasets.md)
 ikh dataset info DATASET                     bones, limb lengths, ground contact
 ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG] [--settle N]
-         [--readout json|shadermotion]      read solved poses from JSON or back from ShaderMotion pixels
+         [--readout json|shadermotion|shadermotion-gpu]
+                                            read solved poses from JSON, from CPU-encoded ShaderMotion
+                                            pixels, or from frames rendered by the recorder shader
+                                            (software OpenGL on a private Xvfb display)
 ikh suite [--suite suites/default.json] --ik renik [--build]      the single number
 ikh negative --dataset D --ik renik          perturbation ladder, fails if not monotonic
 ikh service                                  start monado-service headless (foreground)
@@ -20,7 +23,8 @@ ikh devices | ikh pose DEV x y z [qx qy qz qw] | ikh drop DEV     poke the drive
 ```
 
 Environment variables honoured: `GODOT` (path to the Godot 4.7 binary), `MONADO_PREFIX`,
-`XR_RUNTIME_JSON`, `IKH_PORT`, `IKH_DEBUG`.
+`XR_RUNTIME_JSON`, `IKH_PORT`, `IKH_DEBUG`, `IKH_MAX_RSS_MB`, `IKH_MIN_FREE_MB`, `IKH_GPU_LAUNCHER` (command
+prefix that provides a display for the GPU readout, default `xvfb-run -a -s "-screen 0 320x240x24"`).
 
 ## Feedback loop
 

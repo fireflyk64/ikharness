@@ -25,6 +25,7 @@ load, the container ran out of memory and restarted. Rules since then:
 | Godot harness run, 45 frames × 8 settle | 109 MB | 8 s |
 | Godot editor import for retargeting (Perfume GLB) | 664 MB | 25 s |
 | `monado-service`, null compositor, idle | 75 MB | — |
+| Godot with software OpenGL (llvmpipe) under Xvfb, ShaderMotion recorder, 3 frames | 337 MB | 8 s |
 | Python-only tests | < 100 MB | 2 s |
 
 None of these is large on its own; the risk is concurrency with other work. Measure a new

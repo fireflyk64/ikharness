@@ -146,8 +146,12 @@ unity_to_godot_matrix = godot_to_unity_matrix
 
 # -- whole frames -------------------------------------------------------------------------------------
 
-def frame_to_slots(frame: Frame, skeleton: Skeleton) -> Tuple[Dict[int, float], Dict[str, float]]:
-    """Dataset frame (global bone poses) -> ({slot: value}, {bone: projection residual deg})."""
+def frame_to_slots(frame: Frame, skeleton: Skeleton, propagate_leftovers: bool = True) -> Tuple[Dict[int, float], Dict[str, float]]:
+    """Dataset frame (global bone poses) -> ({slot: value}, {bone: projection residual deg}).
+
+    ``propagate_leftovers=False`` encodes every bone from its true local rotation only, which
+    is what a shader does (it cannot pass one bone's residual on to its children).
+    """
     slots: Dict[int, float] = {}
     residuals: Dict[str, float] = {}
     leftovers: Dict[str, np.ndarray] = {}
@@ -164,7 +168,7 @@ def frame_to_slots(frame: Frame, skeleton: Skeleton) -> Tuple[Dict[int, float], 
         if parent not in frame.bones:
             continue
         local = quat_mul(quat_inv(frame.bones[parent].rotation), frame.bones[bone].rotation)
-        triplet, deg, leftover = encode_bone(names[bone], local, leftovers.get(parent))
+        triplet, deg, leftover = encode_bone(names[bone], local, leftovers.get(parent) if propagate_leftovers else None)
         leftovers[bone] = leftover
         residuals[bone] = deg
         base, channels = codec.BONE_SLOTS[bone]

@@ -32,14 +32,22 @@ def decode_directory(path, skeleton: Skeleton, count: Optional[int] = None) -> L
     return [decode_image(load_image(files[i]), skeleton) if i in files else None for i in range(n)]
 
 
-def roundtrip_frames(frames: Sequence[Frame], skeleton: Skeleton, size=(640, 360)) -> List[Frame]:
-    """Reference poses as ShaderMotion can express them: frame -> slots -> 8 bit image -> frame."""
+def roundtrip_frames(frames: Sequence[Frame], skeleton: Skeleton, size=(640, 360), propagate_leftovers: bool = True) -> List[Frame]:
+    """Reference poses as ShaderMotion can express them: frame -> slots -> 8 bit image -> frame.
+
+    Use ``propagate_leftovers=False`` to mirror a shader encoder, which cannot hand one
+    bone's unrepresentable twist on to its children.
+    """
     out = []
     for f in frames:
-        slots, _ = humanoid.frame_to_slots(f, skeleton)
+        if f is None:
+            out.append(None)
+            continue
+        slots, _ = humanoid.frame_to_slots(f, skeleton, propagate_leftovers)
         out.append(humanoid.slots_to_frame(codec.decode_frame(codec.encode_frame(slots, *size)), skeleton, f.time))
     return out
 
 
-def roundtrip_dataset(dataset: Dataset, size=(640, 360)) -> Dataset:
-    return Dataset(dataset.skeleton, roundtrip_frames(dataset.frames, dataset.skeleton, size), dataset.sources, dataset.generator)
+def roundtrip_dataset(dataset: Dataset, size=(640, 360), propagate_leftovers: bool = True) -> Dataset:
+    return Dataset(dataset.skeleton, roundtrip_frames(dataset.frames, dataset.skeleton, size, propagate_leftovers),
+                   dataset.sources, dataset.generator)

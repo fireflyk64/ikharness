@@ -27,12 +27,32 @@ ROOT = Path(__file__).resolve().parents[2]
 HARNESS = ROOT / "godot" / "harness"
 
 
+def gpu_launcher() -> list:
+    """Command prefix that gives Godot a display for software rendering (IKH_GPU_LAUNCHER overrides)."""
+    import shlex
+    import shutil
+    override = os.environ.get("IKH_GPU_LAUNCHER")
+    if override is not None:
+        return shlex.split(override)
+    if not shutil.which("xvfb-run"):
+        raise RuntimeError("the GPU readout needs a display: install xvfb (xvfb-run) or set IKH_GPU_LAUNCHER")
+    return ["xvfb-run", "-a", "-s", "-screen 0 320x240x24"]
+
+
 def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, timeout: float = 1800.0,
-                shadermotion_dir: Optional[Path] = None) -> str:
-    cmd = [os.environ.get("GODOT", "godot"), "--headless", "--path", str(HARNESS), "-s", "harness.gd", "--",
-           "--trackers", str(trackers_path.resolve()), "--out", str(result_path.resolve()), "--ik", ik, "--settle", str(settle)]
+                shadermotion_dir: Optional[Path] = None, shadermotion_gpu_dir: Optional[Path] = None) -> str:
+    godot = os.environ.get("GODOT", "godot")
+    if shadermotion_gpu_dir is not None:
+        # A real (software) renderer on a private virtual display; nothing appears on the desktop.
+        cmd = gpu_launcher() + [godot, "--path", str(HARNESS), "--display-driver", "x11", "--rendering-driver", "opengl3",
+                                "--audio-driver", "Dummy", "--resolution", "64x64", "-s", "harness.gd", "--"]
+    else:
+        cmd = [godot, "--headless", "--path", str(HARNESS), "-s", "harness.gd", "--"]
+    cmd += ["--trackers", str(trackers_path.resolve()), "--out", str(result_path.resolve()), "--ik", ik, "--settle", str(settle)]
     if shadermotion_dir is not None:
         cmd += ["--shadermotion-dir", str(shadermotion_dir.resolve())]
+    if shadermotion_gpu_dir is not None:
+        cmd += ["--shadermotion-gpu-dir", str(shadermotion_gpu_dir.resolve())]
     if result_path.exists():
         result_path.unlink()
     res = run_guarded(cmd, timeout=timeout)
@@ -49,6 +69,8 @@ def evaluate(dataset_path: Path, tracker_set: str, ik: str = "renik", settle: in
     ``readout="shadermotion"`` makes the harness also write every solved pose as a
     ShaderMotion PNG, reads the poses back from those pixels and scores them against the
     reference passed through the same format (so the format's floor cancels).
+    ``readout="shadermotion-gpu"`` does the same with frames *rendered* by the recorder mesh
+    and shader (software OpenGL on a private Xvfb display).
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     dataset = Dataset.load(dataset_path)
@@ -67,14 +89,16 @@ def evaluate(dataset_path: Path, tracker_set: str, ik: str = "renik", settle: in
         report.save(score_path)
         return report, "echo: no harness run"
     sm_dir = None
-    if readout == "shadermotion":
-        sm_dir = out_dir / f"{stem}.shadermotion"
+    gpu = readout == "shadermotion-gpu"
+    if readout in ("shadermotion", "shadermotion-gpu"):
+        sm_dir = out_dir / f"{stem}.{readout}"
         sm_dir.mkdir(parents=True, exist_ok=True)
         for old in sm_dir.glob("*.png"):
             old.unlink()
     elif readout != "json":
-        raise ValueError(f"unknown readout {readout!r} (json, shadermotion)")
-    log = run_harness(trackers_path, result_path, ik, settle, shadermotion_dir=sm_dir)
+        raise ValueError(f"unknown readout {readout!r} (json, shadermotion, shadermotion-gpu)")
+    log = run_harness(trackers_path, result_path, ik, settle,
+                      shadermotion_dir=None if gpu else sm_dir, shadermotion_gpu_dir=sm_dir if gpu else None)
     result = HarnessResult.load(result_path)
     report = score(dataset, result.frames, implementation=result.implementation, tracker_set=tracker_set,
                    result_rest=result.rest)
@@ -83,11 +107,11 @@ def evaluate(dataset_path: Path, tracker_set: str, ik: str = "renik", settle: in
 
         from .shadermotion.readout import decode_directory, roundtrip_dataset
         decoded = decode_directory(sm_dir, dataset.skeleton, count=len(dataset.frames))
-        via_pixels = score(roundtrip_dataset(dataset), decoded, implementation=f"{result.implementation}+shadermotion",
-                           tracker_set=tracker_set)
-        raw = score(dataset, decoded, implementation=f"{result.implementation}+shadermotion(raw ref)", tracker_set=tracker_set)
+        via_pixels = score(roundtrip_dataset(dataset, propagate_leftovers=not gpu), decoded,
+                           implementation=f"{result.implementation}+{readout}", tracker_set=tracker_set)
+        raw = score(dataset, decoded, implementation=f"{result.implementation}+{readout}(raw ref)", tracker_set=tracker_set)
         doc = via_pixels.to_dict()
-        doc["readout"] = "shadermotion"
+        doc["readout"] = readout
         doc["json_readout_weighted_deg"] = report.weighted_score_deg
         doc["raw_reference_weighted_deg"] = raw.weighted_score_deg
         score_path.write_text(_json.dumps(doc, indent=1))
@@ -106,8 +130,9 @@ def main(argv=None) -> int:
     p.add_argument("--settle", type=int, default=8)
     p.add_argument("--out-dir", default=str(ROOT / "out" / "results"))
     p.add_argument("--perturb", default=None, help="name:magnitude[:seed], see ikharness.negative")
-    p.add_argument("--readout", default="json", choices=["json", "shadermotion"],
-                   help="read solved poses from the result JSON or back from ShaderMotion pixels")
+    p.add_argument("--readout", default="json", choices=["json", "shadermotion", "shadermotion-gpu"],
+                   help="read solved poses from the result JSON, from CPU-encoded ShaderMotion pixels, or from frames "
+                        "rendered by the recorder shader (software OpenGL under Xvfb)")
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args(argv)
     report, log = evaluate(Path(args.dataset), args.tracker_set, args.ik, args.settle, Path(args.out_dir), args.perturb,
@@ -115,7 +140,7 @@ def main(argv=None) -> int:
     if args.verbose:
         print(log)
     print(report.summary())
-    if args.readout == "shadermotion":
+    if args.readout != "json":
         print(f"readout comparison (weighted deg): through pixels {report.weighted_score_deg:.2f} | "
               f"direct JSON {report.json_readout.weighted_score_deg:.2f} | pixels vs raw reference {report.raw_reference.weighted_score_deg:.2f}")
     return 0

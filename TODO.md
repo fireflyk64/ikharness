@@ -79,9 +79,10 @@ test it, and how to see whether it is working (the feedback loop).
       against the round-tripped reference. GDScript and Python encoders agree to 0.013°.
 - [ ] Report / fix upstream `swing_twist_inv` in V-Sekai/godot-shader-motion (unreliable inverse).
 - [ ] `ikh shadermotion encode|decode` for arbitrary images, folders and video frames.
-- [ ] ShaderMotion *shader* in Godot (goal 6): skinned recorder mesh + vertex/fragment shader
-      rendered to a SubViewport, compared pixel for pixel with the CPU encoder. Needs a real
-      renderer (OpenGL on the X display), so measure memory under the guard first.
+- [x] ShaderMotion *shader* in Godot (goal 6): skinned recorder mesh (normals + positions only,
+      skinned tangents proved unusable) and fragment shader, rendered with software OpenGL under
+      Xvfb; `ikh eval --readout shadermotion-gpu`. Matches the Python encoder within 0.026°.
+- [ ] GPU readout with RenIK (non-uniform stretch skews skinned normals) and on the full suite.
 - [ ] Capture path (goal 7): per-frame screen capture and video recording (MovieWriter / PNG
       sequence) plus decode back to bone rotations in Godot; round-trip test against the
       dataset. (`docs/shadermotion.md`)

@@ -5,8 +5,9 @@ shader that encodes each bone's rotation into screen pixels (ShaderMotion), capt
 frames (screenshots or video), and decoding them back into bone rotations that the scorer
 understands. Godot first, then Unity.
 
-**State.** Codec and pose layers done in Python and validated against a genuine
-Unity-encoded frame; the Godot shader encoder and the capture path are next.
+**State.** Codec and pose layers in Python (validated on a genuine Unity-encoded frame), a
+CPU encoder and a **GPU recorder mesh + shader** in Godot, all agreeing to a few hundredths
+of a degree. Next: capture from a separate application window / video, then Unity.
 
 ### What exists: `python/ikharness/shadermotion/codec.py`
 
@@ -85,6 +86,48 @@ readout comparison (weighted deg): through pixels 14.70 | direct JSON 11.74 | pi
   orientation, so wrists carry 27–40° of twist that a Mecanim hand joint cannot express.
   Through pixels that error lands on the hand; through JSON it lands on the forearm.
 
+### What exists: the GPU recorder (`godot/harness/shadermotion_gpu.gd`)
+
+This is ShaderMotion the way it has to work inside a closed application: nothing but a
+skinned mesh and a shader on the avatar. `ikh eval ... --readout shadermotion-gpu` renders
+it with software OpenGL (llvmpipe) on a private Xvfb display, saves the SubViewport and
+scores from those pixels.
+
+![a rendered ShaderMotion frame](img/shadermotion_gpu_frame.png)
+
+* **One triangle per bone**, three vertices, using only what skinning reliably transforms:
+  A (bone): normal +X, position = joint. C (bone): normal +Y. B (parent): normal +X, position =
+  joint + Y. After skinning that yields `R_d(bone)·x`, `R_d(bone)·y`, `R_d(parent)·x`, and
+  `R_d(parent)·y` as the difference of two skinned positions, where `R_d = pose · rest⁻¹` is
+  exactly the rest-relative rotation the scorer uses.
+* **No geometry shader needed.** Each vertex multiplies its data by a role flag; the
+  fragment shader divides by (or normalizes away) the interpolated barycentric weight. The
+  triangle is oversized (corners at −1 and 4 in slot-rectangle units) so every weight stays
+  ≥ 1/5 inside the rectangle; fragments outside are discarded.
+* **Per-bone constants** ride in `CUSTOM0..3`: `L = preQ⁻¹·G_parent⁻¹`, `R = G_bone·postQ`,
+  signs with locked axes zeroed, first slot and channel map. The fragment shader computes
+  `swing = L · (R_d(parent)⁻¹ · R_d(bone)) · R`, the swing-twist inverse, and the Gray-curve
+  color of the square it is drawing. Hips: world position (wide float hi/lo) and the posed
+  basis columns, mirrored in X.
+* **Accuracy**: against the Python encoder on the same solved poses, all 100 angle slots
+  agree within **0.026°** (mean 0.002°), hips position within 0.1 mm, avatar scale exact
+  (`tests/test_godot_gpu.py`).
+* **Cost**: about 330 MB and a few seconds per run under llvmpipe (`docs/resources.md`).
+
+Findings worth keeping (`godot/gpu_probe/` has the probes):
+
+* **Skinned tangents are unusable** in the Compatibility renderer: a supplied tangent of +Y
+  reaches the vertex shader as roughly (0.55, 0, −0.86) while normals and positions are
+  exact. The first recorder design used normal + tangent and produced rotations with Y and Z
+  confused; the redesign above avoids tangents entirely.
+* The SubViewport image has clip-space +Y at the bottom, and colors written to `ALBEDO`
+  come back unchanged except the darkest ~7 levels (up to 7/255 low), which costs at most
+  0.03° on the one interpolated digit.
+* A shader cannot pass one bone's unrepresentable twist to its children, so the GPU path
+  scores against a reference round-tripped without leftover propagation.
+* Non-uniform bone scale (RenIK's stretch) skews skinned normals slightly; the GPU path has
+  only been validated with the `builtin` adapter.
+
 ### Candidates found upstream
 
 | Repository | What | Notes |
@@ -102,11 +145,7 @@ readout comparison (weighted deg): through pixels 14.70 | direct JSON 11.74 | pi
    `core/humanoid/human_trait.gd` and `transform_util.gd` carry pre/post rotations and limit
    signs). Implement `rotations → angles` and back in Python, test the round trip on dataset
    frames, and express the result as rest-relative deltas for the scorer.
-2. **Godot encoder.** ~~CPU GDScript reference encoder~~ done. Next: the real thing, a
-   *shader* on a skinned recorder mesh (how ShaderMotion works inside closed applications:
-   helper vertices bound to each bone let the vertex shader recover the bone's rotation),
-   rendered to a `SubViewport` and compared pixel for pixel with the CPU encoder. Needs a
-   real renderer (OpenGL on the X display); measure memory under the guard first.
+2. ~~**Godot encoder.**~~ Done, CPU (GDScript) and GPU (recorder mesh + shader), see above.
 3. **Godot decoder** from the vendored GDScript, hardened to run headless on an `Image`.
 4. **Capture.** Per-frame `SubViewport.get_texture().get_image()` (in-process), a PNG
    sequence written by the app, or a recorded video (`MovieWriter` for Godot apps;

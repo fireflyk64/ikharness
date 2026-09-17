@@ -1,0 +1,14 @@
+; ikharness GPU probe (software rendering checks), not part of the harness.
+config_version=5
+
+[application]
+config/name="ikharness gpu probe"
+config/features=PackedStringArray("4.7")
+
+[display]
+window/size/viewport_width=64
+window/size/viewport_height=64
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+anti_aliasing/quality/msaa_3d=0
