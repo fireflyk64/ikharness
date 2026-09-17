@@ -24,7 +24,7 @@ ikh devices | ikh pose DEV x y z [qx qy qz qw] | ikh drop DEV     poke the drive
 
 Environment variables honoured: `GODOT` (path to the Godot 4.7 binary), `MONADO_PREFIX`,
 `XR_RUNTIME_JSON`, `IKH_PORT`, `IKH_DEBUG`, `IKH_MAX_RSS_MB`, `IKH_MIN_FREE_MB`, `IKH_GPU_LAUNCHER` (command
-prefix that provides a display for the GPU readout, default `xvfb-run -a -s "-screen 0 320x240x24"`).
+prefix that provides a display for the GPU readout, default `python -m ikharness.xvfb --`).
 
 ## Feedback loop
 

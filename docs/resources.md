@@ -18,6 +18,12 @@ load, the container ran out of memory and restarted. Rules since then:
    the test suite in parts with a headroom report between them.
 5. **Do not peg the cores.** The harness caps its frame rate (`--max-fps`, default 240).
 
+6. **Leave no zombies.** PID 1 in this container is `websockify`, which never reaps orphans, so
+   every orphaned child becomes a permanent zombie and counts against `pids.max` (1024).
+   `xvfb-run` orphans its Xvfb on every call, so the GPU readout uses `ikharness.xvfb`, which
+   keeps Xvfb as a direct child and waits for it. `run_guarded` waits for everything it starts.
+   Check with `ps -eo stat,comm | awk '$1 ~ /^Z/' | sort | uniq -c`.
+
 ## Measured peaks (2026-09-16, this container)
 
 | Step | Peak RSS | Time |

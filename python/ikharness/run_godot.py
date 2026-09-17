@@ -34,9 +34,10 @@ def gpu_launcher() -> list:
     override = os.environ.get("IKH_GPU_LAUNCHER")
     if override is not None:
         return shlex.split(override)
-    if not shutil.which("xvfb-run"):
-        raise RuntimeError("the GPU readout needs a display: install xvfb (xvfb-run) or set IKH_GPU_LAUNCHER")
-    return ["xvfb-run", "-a", "-s", "-screen 0 320x240x24"]
+    if not shutil.which("Xvfb"):
+        raise RuntimeError("the GPU readout needs a display: install xvfb or set IKH_GPU_LAUNCHER")
+    # Not xvfb-run: it orphans Xvfb, which becomes a permanent zombie when PID 1 does not reap.
+    return [sys.executable, "-m", "ikharness.xvfb", "--"]
 
 
 def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, timeout: float = 1800.0,

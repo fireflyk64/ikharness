@@ -22,8 +22,8 @@ def godot():
     exe = os.environ.get("GODOT") or shutil.which("godot") or str(Path.home() / ".local/bin/godot")
     if not Path(exe).exists():
         pytest.skip("Godot 4 binary not found (set GODOT)")
-    if not shutil.which("xvfb-run") and "IKH_GPU_LAUNCHER" not in os.environ:
-        pytest.skip("xvfb-run not available for software rendering")
+    if not shutil.which("Xvfb") and "IKH_GPU_LAUNCHER" not in os.environ:
+        pytest.skip("Xvfb not available for software rendering")
     os.environ["GODOT"] = exe
     return exe
 
