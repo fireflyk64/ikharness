@@ -10,6 +10,7 @@ ikh status                                   what is installed / running / built
 ikh dataset build --model M --anim A ...     export a dataset (see docs/datasets.md)
 ikh dataset info DATASET                     bones, limb lengths, ground contact
 ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG] [--settle N]
+         [--readout json|shadermotion]      read solved poses from JSON or back from ShaderMotion pixels
 ikh suite [--suite suites/default.json] --ik renik [--build]      the single number
 ikh negative --dataset D --ik renik          perturbation ladder, fails if not monotonic
 ikh service                                  start monado-service headless (foreground)

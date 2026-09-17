@@ -74,10 +74,13 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] ShaderMotion pose layer: bone rotations ↔ swing-twist angles (godot-humanoid tables),
       whole frames ↔ slots with projection residuals. Round-trip floor 1.6° (walk) / 2.7°
       (mocap) weighted; genuine frame reconstructs to a plausible standing pose.
-- [ ] Score "through ShaderMotion": option to pass the reference through the same round trip so
-      the format's floor cancels; `ikh shadermotion encode|decode` for images and folders.
-- [ ] ShaderMotion in Godot (goal 6): encoder shader on the harness avatar + GDScript decoder
-      (from `V-Sekai/godot-shader-motion`), checked against the Python codec. Needs a real
+- [x] Score "through ShaderMotion": the harness writes ShaderMotion PNGs (CPU encoder in
+      GDScript), `ikh eval --readout shadermotion` reads poses back from the pixels and scores
+      against the round-tripped reference. GDScript and Python encoders agree to 0.013°.
+- [ ] Report / fix upstream `swing_twist_inv` in V-Sekai/godot-shader-motion (unreliable inverse).
+- [ ] `ikh shadermotion encode|decode` for arbitrary images, folders and video frames.
+- [ ] ShaderMotion *shader* in Godot (goal 6): skinned recorder mesh + vertex/fragment shader
+      rendered to a SubViewport, compared pixel for pixel with the CPU encoder. Needs a real
       renderer (OpenGL on the X display), so measure memory under the guard first.
 - [ ] Capture path (goal 7): per-frame screen capture and video recording (MovieWriter / PNG
       sequence) plus decode back to bone rotations in Godot; round-trip test against the

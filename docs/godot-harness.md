@@ -28,6 +28,8 @@ Under the hood: `ikharness.testfile.build_test_file` → `godot/harness/harness.
   global poses **inside `skeleton_updated`**, because Godot restores pre-modifier poses
   after each update.
 * Writes the result with the rig's rest orientations, so the scorer can be rest-relative.
+* With `--shadermotion-dir` it also writes each solved pose as a ShaderMotion PNG
+  (`ikh eval --readout shadermotion` scores from those pixels, see [shadermotion.md](shadermotion.md)).
 
 ## Adapters
 

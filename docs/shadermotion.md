@@ -62,6 +62,29 @@ Things worth knowing:
   raised in front of the chest (elbows flexed ~140°). That confirms signs and handedness for
   limbs; the hips mirror convention still deserves a check against a frame of a *known* pose.
 
+### What exists: Godot CPU encoder and pixel readout
+
+`godot/harness/shadermotion_encoder.gd` encodes every solved pose to a ShaderMotion PNG
+(`--shadermotion-dir`, no renderer needed; godot-humanoid's tables vendored under
+`godot/harness/addons/humanoid`). `ikh eval ... --readout shadermotion` then reads the poses
+back **from the pixels** in Python and scores them against the reference passed through the
+same format, printing the comparison with the direct JSON readout:
+
+```
+readout comparison (weighted deg): through pixels 14.70 | direct JSON 11.74 | pixels vs raw reference 15.94
+```
+
+* The GDScript encoder and the Python encoder agree to **0.013°** on the same solved poses
+  (`tests/test_godot_harness.py::test_shadermotion_pixel_readout_matches_python_encoder`).
+* Upstream's GDScript `swing_twist_inv` (`transform_util.gd`) is unreliable: it divides by
+  near-zero twist terms and patches quaternion signs ad hoc, which sent shoulders, upper
+  arms and a foot 90–160° off in this pipeline. The encoder here carries its own inverse (w ≥ 0
+  representative, direct 2×2 solve). Worth fixing upstream.
+* The remaining gap to the JSON readout is format loss, and it depends on the IK: the
+  `builtin` adapter leaves forearm and shin roll unsolved and then forces hand and foot
+  orientation, so wrists carry 27–40° of twist that a Mecanim hand joint cannot express.
+  Through pixels that error lands on the hand; through JSON it lands on the forearm.
+
 ### Candidates found upstream
 
 | Repository | What | Notes |
@@ -79,10 +102,11 @@ Things worth knowing:
    `core/humanoid/human_trait.gd` and `transform_util.gd` carry pre/post rotations and limit
    signs). Implement `rotations → angles` and back in Python, test the round trip on dataset
    frames, and express the result as rest-relative deltas for the scorer.
-2. **Godot encoder.** A Godot shader (or CPU GDScript reference encoder) that, given the
-   harness skeleton, writes the ShaderMotion tile image into a `SubViewport`. Verify with
-   the vendored decoder: encode → decode must reproduce the input rotations. This is the
-   round trip and it needs no capture yet.
+2. **Godot encoder.** ~~CPU GDScript reference encoder~~ done. Next: the real thing, a
+   *shader* on a skinned recorder mesh (how ShaderMotion works inside closed applications:
+   helper vertices bound to each bone let the vertex shader recover the bone's rotation),
+   rendered to a `SubViewport` and compared pixel for pixel with the CPU encoder. Needs a
+   real renderer (OpenGL on the X display); measure memory under the guard first.
 3. **Godot decoder** from the vendored GDScript, hardened to run headless on an `Image`.
 4. **Capture.** Per-frame `SubViewport.get_texture().get_image()` (in-process), a PNG
    sequence written by the app, or a recorded video (`MovieWriter` for Godot apps;

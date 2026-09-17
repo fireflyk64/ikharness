@@ -52,3 +52,24 @@ def test_input_perturbation_lowers_score(godot, tmp_path):
     base, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path)
     worse, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path, perturb="feet_offset:0.2")
     assert worse.weighted_score_deg > base.weighted_score_deg + 1.0
+
+
+def test_shadermotion_pixel_readout_matches_python_encoder(godot, tmp_path):
+    """Godot's CPU ShaderMotion encoder and the Python encoder must agree on the same solved poses."""
+    import math
+
+    from ikharness.mathutil import quat_angle
+    from ikharness.shadermotion.readout import decode_directory, roundtrip_frames
+    from ikharness.testfile import HarnessResult
+
+    report, _ = evaluate(DATA / "mini_walk.json", "6pt", ik="builtin", settle=6, out_dir=tmp_path, readout="shadermotion")
+    assert report.frames_scored == 3 and report.frames_missing == 0
+    dataset = Dataset.load(DATA / "mini_walk.json")
+    solved = HarnessResult.load(tmp_path / "mini_walk_builtin_6pt.result.json")
+    from_godot = decode_directory(tmp_path / "mini_walk_builtin_6pt.shadermotion", dataset.skeleton, count=3)
+    from_python = roundtrip_frames(solved.frames, dataset.skeleton)
+    for a, b in zip(from_godot, from_python):
+        for bone in dataset.body_bones():
+            assert math.degrees(quat_angle(a.bones[bone].rotation, b.bones[bone].rotation)) < 0.1, bone
+    # Reading through pixels costs accuracy but stays in the same league as the direct readout.
+    assert report.weighted_score_deg < report.json_readout.weighted_score_deg + 8.0

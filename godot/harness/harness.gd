@@ -7,6 +7,7 @@
 # Usage:
 #   godot --headless --path godot/harness -s harness.gd -- \
 #       --trackers /abs/test.json --out /abs/result.json [--ik renik] [--settle 8] [--max-fps 240]
+#       [--shadermotion-dir /abs/dir]   also write each solved pose as a ShaderMotion PNG
 #
 # --settle  number of processed frames per test pose before the pose is read,
 #           so iterative / smoothed solvers converge.
@@ -15,7 +16,9 @@ extends SceneTree
 const TRACKERS_FORMAT := "ikharness-trackers/1"
 const RESULT_FORMAT := "ikharness-result/1"
 
-var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240}
+const ShaderMotionEncoder := preload("res://shadermotion_encoder.gd")
+
+var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": ""}
 
 var test: Dictionary
 var skeleton: Skeleton3D
@@ -139,17 +142,29 @@ func has_tracker(role: String) -> bool:
 # Capture it there; step() then records the capture once the settle frames
 # for the current targets have elapsed.
 var last_captured: Dictionary = {}
+var last_globals: Dictionary = {}
 
 func _on_skeleton_updated() -> void:
 	var bones := {}
+	var globals := {"Root": Transform3D.IDENTITY}
 	for b in humanoid_bone_ids:
 		var g := skeleton.get_bone_global_pose(b)
+		globals[skeleton.get_bone_name(b)] = g
 		var q := g.basis.get_rotation_quaternion().normalized()
 		bones[skeleton.get_bone_name(b)] = {
 			"position": [g.origin.x, g.origin.y, g.origin.z],
 			"rotation": [q.x, q.y, q.z, q.w],
 		}
 	last_captured = bones
+	last_globals = globals
+
+func write_shadermotion_frame(index: int) -> void:
+	var dir: String = opts["shadermotion-dir"]
+	if dir == "" or last_globals.is_empty():
+		return
+	var slots := ShaderMotionEncoder.pose_to_slots(skeleton, last_globals, float(test["skeleton"]["hips_height"]))
+	var img := ShaderMotionEncoder.slots_to_image(slots)
+	img.save_png(dir.path_join("frame_%05d.png" % index))
 
 func read_global_poses() -> Dictionary:
 	return last_captured
@@ -164,6 +179,7 @@ func step() -> void:
 			var frame: Dictionary = frames[frame_index]
 			var bones := read_global_poses()
 			results.append({"index": frame["index"], "time": frame.get("time", 0.0), "bones": bones})
+			write_shadermotion_frame(int(frame["index"]))
 			if frame_index == 0 and OS.get_environment("IKH_DEBUG") != "":
 				for role in test["roles"]:
 					var rule: Dictionary = test["rules"][role]
