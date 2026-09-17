@@ -19,6 +19,7 @@ from typing import Optional
 
 from .dataset import Dataset
 from .negative import make_tracker_perturbation
+from .proc import run_guarded
 from .scoring import score
 from .testfile import HarnessResult, build_test_file
 
@@ -29,10 +30,12 @@ HARNESS = ROOT / "godot" / "harness"
 def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, timeout: float = 1800.0) -> str:
     cmd = [os.environ.get("GODOT", "godot"), "--headless", "--path", str(HARNESS), "-s", "harness.gd", "--",
            "--trackers", str(trackers_path.resolve()), "--out", str(result_path.resolve()), "--ik", ik, "--settle", str(settle)]
-    res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    log = res.stdout + res.stderr
-    if res.returncode != 0 or not result_path.exists():
-        raise RuntimeError(f"harness failed (rc={res.returncode}):\n{log[-4000:]}")
+    if result_path.exists():
+        result_path.unlink()
+    res = run_guarded(cmd, timeout=timeout)
+    log = res.log
+    if res.killed or res.returncode != 0 or not result_path.exists():
+        raise RuntimeError(f"harness failed (rc={res.returncode}, killed={res.killed or 'no'}, peak {res.peak_rss_mb:.0f} MB):\n{log[-4000:]}")
     return log
 
 

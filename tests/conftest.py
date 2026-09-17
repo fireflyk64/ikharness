@@ -58,7 +58,10 @@ def monado_service():
     log_path = ROOT / "out/monado-service.log"
     log_path.parent.mkdir(exist_ok=True)
     log = open(log_path, "w")
-    proc = subprocess.Popen([str(service)], env=env, stdout=log, stderr=subprocess.STDOUT)
+    from ikharness.proc import Guard, ensure_headroom
+    ensure_headroom()
+    proc = subprocess.Popen([str(service)], env=env, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    guard = Guard(proc, max_rss_mb=1500)
     try:
         # Give the driver a moment to bind its socket, the tests then retry connecting.
         time.sleep(0.5)
@@ -67,7 +70,7 @@ def monado_service():
             pytest.fail(f"monado-service exited early, see {log_path}:\n{log_path.read_text()[-4000:]}")
         yield proc
     finally:
-        proc.terminate()
+        guard.stop()
         try:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:

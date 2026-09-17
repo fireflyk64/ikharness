@@ -6,7 +6,7 @@
 #
 # Usage:
 #   godot --headless --path godot/harness -s harness.gd -- \
-#       --trackers /abs/test.json --out /abs/result.json [--ik renik] [--settle 8]
+#       --trackers /abs/test.json --out /abs/result.json [--ik renik] [--settle 8] [--max-fps 240]
 #
 # --settle  number of processed frames per test pose before the pose is read,
 #           so iterative / smoothed solvers converge.
@@ -15,7 +15,7 @@ extends SceneTree
 const TRACKERS_FORMAT := "ikharness-trackers/1"
 const RESULT_FORMAT := "ikharness-result/1"
 
-var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8}
+var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240}
 
 var test: Dictionary
 var skeleton: Skeleton3D
@@ -28,6 +28,7 @@ var humanoid_bone_ids: Array[int] = []
 
 func _init():
 	_parse_args()
+	Engine.max_fps = int(opts["max-fps"])
 	if opts["trackers"] == "" or opts["out"] == "":
 		printerr("harness: --trackers and --out are required")
 		quit(1)
@@ -76,7 +77,7 @@ func _parse_args() -> void:
 		if a.begins_with("--") and i + 1 < args.size():
 			var key := a.substr(2)
 			var v: String = args[i + 1]
-			opts[key] = int(v) if key == "settle" else v
+			opts[key] = int(v) if key in ["settle", "max-fps"] else v
 			i += 1
 		i += 1
 

@@ -14,6 +14,7 @@ The task list lives in [`../TODO.md`](../TODO.md).
 | [godot-openxr.md](godot-openxr.md) | Godot as an OpenXR client of the Monado driver | planned |
 | [shadermotion.md](shadermotion.md) | Bone rotations as pixels: Godot port, capture, video | planned |
 | [unity.md](unity.md) | Unity avatar, shader, harness | blocked (no Unity) |
+| [resources.md](resources.md) | Memory guard, shared-machine rules, measured budgets | in force |
 
 ## The pipeline in one picture
 
@@ -50,6 +51,9 @@ The task list lives in [`../TODO.md`](../TODO.md).
   T-pose calibration with trackers placed exactly on the bones yields.
 
 ## Feedback loops, from fast to slow
+
+Run them with `scripts/run_tests.sh` (parts, sequential, headroom reported); never start two
+engine runs at once on the shared container ([resources.md](resources.md)).
 
 1. `pytest tests/test_dataset_pipeline.py tests/test_protocol.py` — pure Python, seconds.
 2. `pytest tests/test_godot_harness.py` — Godot headless on the mini dataset, ~10 s.
