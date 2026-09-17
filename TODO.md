@@ -45,12 +45,17 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] Negative tests (goal 4): perturbations on the tracker inputs (`--perturb`) and on solved
       results; `ikh negative` runs the ladder and checks monotonic degradation;
       `tests/test_negative.py` guards the metric. (`docs/scoring.md`)
-- [ ] Godot import retargeter in the dataset exporter (goal 1/5): headless `--import` of a model
-      with a generated `.import` (BoneMap + rest fixer) so BVH-named (Perfume) and VRM-named
-      (MMD sample) rigs land on the standard humanoid; then more datasets. (`docs/datasets.md`)
+- [x] Godot import retargeter in the dataset exporter (goal 1/5): `--bone-map` presets
+      (`vrm`, `bvh_perfume`, `mixamo`) or JSON; Perfume and MMD datasets added to the suite
+      with 0.0° rest deviation from the profile. (`docs/datasets.md`)
+- [ ] More datasets from the retargeting demo repo (Mixamo catwalk, hip-hop and No Logic David
+      dance GLBs, VRM avatars) and the other two Perfume clips; frame selection by pose diversity.
 - [x] Godot's built-in IK as a second harness adapter (`--ik builtin`: FABRIK3D spine,
-      TwoBoneIK3D limbs with pole nodes, hips + end-effector modifiers). Suite: builtin
-      13.51°, RenIK 17.57°, rest pose 48.76°. (`docs/godot-harness.md`)
+      TwoBoneIK3D limbs with pole nodes, hips + end-effector modifiers). Suite (4 datasets): builtin
+      16.18°, RenIK 22.10°, rest pose 69.74°. (`docs/godot-harness.md`)
+
+- [x] Memory guard for every Godot / Monado launch, headroom checks, test suite in parts,
+      after the shared 8 GB container ran out of memory. (`docs/resources.md`)
 
 ## Next
 

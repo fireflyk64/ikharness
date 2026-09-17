@@ -53,15 +53,16 @@ godot --headless --path godot/harness --import    # once: build the harness proj
 .venv/bin/python -m ikharness.replay --dataset out/datasets/walk.json --tracker-set 6pt --verify   # into Monado
 ```
 
-Current suite numbers (`ikh suite`, `suites/default.json`: idle/walk clips and a 46 s mocap clip on the
-V-Sekai test avatar, 6 and 11 point tracking; weighted mean angular error over 21 body bones, lower is
-better; `quality` is `100·exp(-deg/25)`):
+Current suite numbers (`ikh suite`, `suites/default.json`: V-Sekai idle/walk and 46 s mocap on the
+V-Sekai avatar, a Perfume dance (BVH-named rig) and an MMD dance (VRM rig) retargeted through Godot; 6 and
+11 point tracking; weighted mean angular error over 21 body bones, lower is better; `quality` is
+`100·exp(-deg/25)`):
 
-| Implementation | final (deg) | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt |
-|---|---|---|---|---|---|---|
-| builtin (Godot TwoBoneIK3D + FABRIK3D) | **13.51** | 58.2 | 12.84 | 11.24 | 15.35 | 13.46 |
-| renik | **17.57** | 49.5 | 14.26 | 12.33 | 21.36 | 21.87 |
-| none (rest pose) | **48.76** | 14.2 | 39.25 | 39.25 | 58.26 | 58.26 |
+| Implementation | final (deg) | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt | perfume 6pt | perfume 11pt | mmd 6pt | mmd 11pt |
+|---|---|---|---|---|---|---|---|---|---|---|
+| builtin (Godot TwoBoneIK3D + FABRIK3D) | **16.18** | 52.4 | 12.84 | 11.24 | 15.35 | 13.46 | 27.35 | 16.58 | 15.04 | 11.66 |
+| renik | **22.10** | 41.3 | 14.26 | 12.33 | 21.36 | 21.87 | 39.54 | 25.03 | 18.75 | 18.11 |
+| none (rest pose) | **69.74** | 6.1 | 39.25 | 39.25 | 58.26 | 58.26 | 133.08 | 133.08 | 48.37 | 48.37 |
 
 ## Conventions
 

@@ -46,6 +46,13 @@ def cmd_status(args) -> int:
     print(f"  [{'ok' if running else '..'}] {'driver listening':<28} 127.0.0.1:{port}{'' if running else ' (start with: ikh service)'}")
     ds = sorted((ROOT / "out/datasets").glob("*.json")) if (ROOT / "out/datasets").exists() else []
     print(f"  [{'ok' if ds else '..'}] {'datasets':<28} {', '.join(p.stem for p in ds) or 'none (ikh suite --build)'}")
+    from .proc import DEFAULT_MAX_RSS_MB, container_free_mb, foreign_engine_processes
+    free = container_free_mb()
+    if free is not None:
+        print(f"  [{'ok' if free > 1200 else '!!'}] {'container memory free':<28} {free:.0f} MB (guard kills a step above {DEFAULT_MAX_RSS_MB} MB)")
+    others = foreign_engine_processes()
+    for o in others[:4]:
+        print(f"  [..] {'engine process running':<28} {o}")
     try:
         import xr  # noqa: F401
         line("pyopenxr", True)
@@ -72,6 +79,10 @@ def cmd_dataset(args) -> int:
         rest_foot = sk.bones["LeftFoot"].rest_global.position[1]
         print(f"  lowest foot y: p10 {np.percentile(foot, 10):.3f} p50 {np.percentile(foot, 50):.3f} (rest {rest_foot:.3f})")
         print(f"  hips y: p50 {np.percentile(hips, 50):.3f} p90 {np.percentile(hips, 90):.3f} (rest {sk.hips_height:.3f})")
+        from .retarget import rest_conformance
+        dev = rest_conformance(sk)
+        worst = sorted(dev.items(), key=lambda kv: -kv[1])[:3]
+        print(f"  rest vs humanoid profile: max {worst[0][1]:.2f} deg ({worst[0][0]})" + ("" if worst[0][1] < 0.5 else "  <-- NOT in profile convention"))
         for s in d.sources:
             print(f"  clip {s.get('id')}: {Path(str(s.get('path'))).name} '{s.get('animation')}' {float(s.get('length', 0)):.1f}s hips_mode={s.get('hips_mode')}")
         return 0

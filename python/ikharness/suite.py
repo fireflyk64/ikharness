@@ -64,9 +64,9 @@ class SuiteReport:
 
     def summary(self) -> str:
         lines = [f"suite {self.suite} / {self.implementation}: FINAL {self.final_deg:.2f} deg  (quality {self.quality:.1f}/100, {self.seconds:.0f}s)",
-                 f"{'dataset':<12}{'set':<7}{'weight':>7}{'body':>8}{'weighted':>10}{'ee cm':>7}{'frames':>8}"]
+                 f"{'dataset':<18}{'set':<7}{'weight':>7}{'body':>8}{'weighted':>10}{'ee cm':>7}{'frames':>8}"]
         for e in self.entries:
-            lines.append(f"{e.dataset:<12}{e.tracker_set:<7}{e.weight:7.1f}{e.body_score_deg:8.2f}{e.weighted_score_deg:10.2f}{e.end_effector_m * 100:7.1f}{e.frames:8d}")
+            lines.append(f"{e.dataset:<18}{e.tracker_set:<7}{e.weight:7.1f}{e.body_score_deg:8.2f}{e.weighted_score_deg:10.2f}{e.end_effector_m * 100:7.1f}{e.frames:8d}")
         return "\n".join(lines)
 
 
@@ -87,7 +87,10 @@ def ensure_dataset(suite: dict, name: str, build: bool) -> Path:
            "--frames", str(recipe.get("frames", 30)), "--hips-mode", recipe.get("hips_mode", "absolute"),
            "--out", str(path)]
     for a in recipe["anims"]:
-        cmd += ["--anim", str(expand(a))]
+        base, clip = (a.rsplit(":", 1) if ":" in a and not Path(os.path.expanduser(a)).exists() else (a, None))
+        cmd += ["--anim", str(expand(base)) + (f":{clip}" if clip else "")]
+    if recipe.get("bone_map"):
+        cmd += ["--bone-map", recipe["bone_map"]]
     path.parent.mkdir(parents=True, exist_ok=True)
     print(f"building dataset {name} ...", file=sys.stderr)
     res = subprocess.run(cmd, capture_output=True, text=True)

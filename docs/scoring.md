@@ -47,18 +47,18 @@ ikh suite --ik renik            # builds missing datasets from the suite's recip
 ikh suite --ik none             # rest-pose baseline
 ```
 
-Current values (`suites/default.json`: walk + mocap datasets, 6 and 11 point sets,
-2026-09-15):
+Current values (`suites/default.json`, four datasets × 6/11 point sets, 2026-09-15):
 
-| Implementation | final_deg | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt |
-|---|---|---|---|---|---|---|
-| builtin (Godot TwoBoneIK3D + FABRIK3D) | **13.51** | 58.2 | 12.84 | 11.24 | 15.35 | 13.46 |
-| renik | **17.57** | 49.5 | 14.26 | 12.33 | 21.36 | 21.87 |
-| none (rest pose) | **48.76** | 14.2 | 39.25 | 39.25 | 58.26 | 58.26 |
+| Implementation | final (deg) | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt | perfume 6pt | perfume 11pt | mmd 6pt | mmd 11pt |
+|---|---|---|---|---|---|---|---|---|---|---|
+| builtin (Godot TwoBoneIK3D + FABRIK3D) | **16.18** | 52.4 | 12.84 | 11.24 | 15.35 | 13.46 | 27.35 | 16.58 | 15.04 | 11.66 |
+| renik | **22.10** | 41.3 | 14.26 | 12.33 | 21.36 | 21.87 | 39.54 | 25.03 | 18.75 | 18.11 |
+| none (rest pose) | **69.74** | 6.1 | 39.25 | 39.25 | 58.26 | 58.26 | 133.08 | 133.08 | 48.37 | 48.37 |
 
-Numbers are weighted degrees. Known oddity: on the mocap set the 11-point run leaves the
-hands 3.8 cm off target (0.4 cm with 6 points), so the elbow pole feeding costs precision
-there; see `docs/godot-harness.md`.
+Numbers are weighted degrees. The rest-pose baseline scores 133° on the Perfume dance
+because the dancer turns away from the rest facing. Known oddity: on the mocap set RenIK's
+11-point run leaves the hands 3.8 cm off target (0.4 cm with 6 points), so its elbow pole
+feeding costs precision; see `docs/godot-harness.md`.
 
 ## Negative tests (`ikh negative`)
 

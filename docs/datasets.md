@@ -4,9 +4,10 @@
 standard skeleton, with the limb lengths recorded, so every harness solves exactly the same
 problem.
 
-**State.** Working for models that already carry Godot humanoid bone names (V-Sekai test
-avatar, godette) and clips in Godot `.tres` or GLB form. Rigs with other bone names
-(Perfume BVH names, MMD/VRM `J_Bip_*` names) still need the retargeter step below.
+**State.** Working. Models with Godot humanoid bone names export directly; any other rig
+goes through Godot's import retargeter with a bone map (`--bone-map vrm|bvh_perfume|mixamo|
+file.json`), which renames bones, forces a profile-conformant T-pose (silhouette fix) and
+rewrites the clip tracks. Four datasets feed the default suite.
 
 ## Format
 
@@ -39,23 +40,34 @@ ikh dataset info out/datasets/walk.json          # bones, limb lengths, ground c
   placement and the test-file round trip on `tests/data/mini_walk.json`.
 * The self-score of a dataset against itself must be 0 (`ikh eval --ik echo` does this).
 
-## Retargeting plan (goal 1 / 5)
+## Retargeting (goal 1 / 5)
 
-Two routes, both inside Godot so they match the engine's own conventions:
+`ikharness.retarget` drives **Godot's own import retargeter**: it writes a throw-away
+project containing the model, a `BoneMap` resource (`bone_map.tres`, generated from the
+preset or JSON map) and a `.import` file whose `_subresources/nodes/"PATH:<skeleton>"` block
+sets `retarget/bone_map`, the bone renamer (`GeneralSkeleton`, unique node) and the rest
+fixer (`retarget_method = 1` "Overwrite Axis", `fix_silhouette/enable`, absolute position
+tracks). `godot --headless --import` produces the retargeted scene, and the exporter loads
+it as `res://<model>` inside that project.
 
-1. **Import retargeter** (preferred for datasets): generate a temporary project with the model
-   and a `.import` file carrying `retarget/bone_map` (a `BoneMap` over
-   `SkeletonProfileHumanoid`) and the `rest_fixer` options (`overwrite_axis`, `fix_silhouette`,
-   `normalize_position_tracks`), run `godot --headless --import`, then load the imported
-   `.scn` and export as today. This is what the `.import` files next to the Basic Motions FBX
-   already do inside the V-Sekai project.
-2. **`RetargetModifier3D`** (runtime): child of a source skeleton, transfers poses (or global
-   poses) to child skeletons sharing profile bone names. Useful for driving a differently
-   proportioned avatar live, e.g. Godot as an OpenXR driver.
+```sh
+ikh dataset build --model ANIM_aachan.glb --anim ANIM_aachan.glb --bone-map bvh_perfume --frames 30 --out out/datasets/perfume_aachan.json
+ikh dataset build --model melt.glb --anim "melt.glb:MMD Animation melt" --bone-map vrm --frames 40 --out out/datasets/mmd_melt.json
+ikh dataset info out/datasets/mmd_melt.json     # prints "rest vs humanoid profile: max 0.00 deg"
+```
 
-Checks for either route: after retargeting, the T-pose of the target must equal the profile
-(bone directions along +Y in bone space), and re-exporting a clip that already uses profile
-names must reproduce the original dataset to floating point noise.
+Adding a rig: write `{"Hips": "<source bone>", "LeftUpperArm": "...", ...}` as JSON (profile
+bone names as keys, see `retarget.PROFILE_BONES`) or add a preset function in
+`retarget.py`. Clips embedded in the model are retargeted with it; name a clip with
+`model.glb:<clip name>` when the file holds several.
+
+The runtime alternative, `RetargetModifier3D`, stays reserved for driving a differently
+proportioned avatar live (Godot as an OpenXR driver).
+
+**Checks.** `rest_conformance()` measures the angle between every body bone's rest and the
+profile reference; it is 0.0° for all four datasets and `tests/test_retarget.py` asserts
+< 0.5° after retargeting the Perfume rig. The V-Sekai avatar exported directly and through
+the importer must match to floating point noise (to add as a test).
 
 ## Sources available locally
 
@@ -63,7 +75,7 @@ names must reproduce the original dataset to floating point noise.
 |---|---|---|---|
 | `~/dev/animations/ANIM_test_assets` | humanoid names | 46 s mocap (`.tres` + in GLB) | used (`mocap08`) |
 | `~/dev/V-Sekai-game/addons/vsk_game_framework/animations` | humanoid names | idle, walk × 8 (`.tres`) | used (`vsk_walk`) |
-| `~/dev/animations/ANIM_perfume` | BVH names (`RightCollar`, `RightShoulder`, ...) | 3 × 94 s dance (GLB + BVH) | needs bone map |
-| `~/dev/animations/ANIM_mmd_vrm_sample` | VRM `J_Bip_*` | 261 s MMD dance (GLB + `.tres` + VMD) | needs bone map |
-| `~/dev/animations/ANIM_female_doll_retargeting` | mixed (Mixamo, VRM, ...) | retargeting demo | to inspect |
+| `~/dev/animations/ANIM_perfume` | BVH names (`RightCollar`, `RightShoulder`, ...) | 3 × 94 s dance (GLB + BVH) | used (`perfume_aachan`, preset `bvh_perfume`) |
+| `~/dev/animations/ANIM_mmd_vrm_sample` | VRM `J_Bip_*` | 261 s MMD dance (GLB + `.tres` + VMD) | used (`mmd_melt`, preset `vrm`) |
+| `~/dev/animations/ANIM_female_doll_retargeting` | Mixamo gltf, VRMs, dance GLBs | retargeting demo | preset `mixamo` exists, datasets to add |
 | `~/dev/animations/Basic Motions FREE` | `B-*` names | git-LFS pointers only | data missing |

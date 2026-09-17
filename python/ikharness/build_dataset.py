@@ -15,8 +15,10 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from .dataset import Dataset
+from .proc import run_guarded
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOLS = ROOT / "godot" / "tools"
@@ -27,17 +29,28 @@ def godot_binary() -> str:
 
 
 def export_clip(model: str, anim: str, out: str, frames: int, hips_mode: str, start: float, end: float,
-                keep_root: bool = False) -> None:
-    cmd = [godot_binary(), "--headless", "--path", str(TOOLS), "-s", "export_poses.gd", "--",
-           "--model", str(Path(model).resolve()), "--anim", anim if ":" in anim and not Path(anim).exists() else str(Path(anim).resolve()),
+                keep_root: bool = False, project: Optional[Path] = None) -> None:
+    """Run the exporter. With ``project`` set, model/anim are ``res://`` paths inside that project."""
+    def resolve(path: str) -> str:
+        if path.startswith("res://"):
+            return path
+        if ":" in path and not Path(path).exists():
+            base, clip = path.rsplit(":", 1)
+            return f"{Path(base).resolve()}:{clip}"
+        return str(Path(path).resolve())
+
+    project_path = str(project) if project else str(TOOLS)
+    script = "export_poses.gd" if not project else str(TOOLS / "export_poses.gd")
+    cmd = [godot_binary(), "--headless", "--path", project_path, "-s", script, "--",
+           "--model", resolve(model), "--anim", resolve(anim),
            "--out", str(Path(out).resolve()), "--frames", str(frames), "--hips-mode", hips_mode,
            "--start", str(start), "--end", str(end)]
     if keep_root:
         cmd.append("--keep-root")
-    res = subprocess.run(cmd, capture_output=True, text=True)
-    log = (res.stdout + res.stderr)
-    if res.returncode != 0 or "export_poses: wrote" not in log:
-        raise RuntimeError(f"exporter failed for {anim}:\n{log[-3000:]}")
+    res = run_guarded(cmd, timeout=900)
+    log = res.log
+    if res.killed or res.returncode != 0 or "export_poses: wrote" not in log:
+        raise RuntimeError(f"exporter failed for {anim} (killed={res.killed or 'no'}, peak {res.peak_rss_mb:.0f} MB):\n{log[-3000:]}")
     for line in log.splitlines():
         if line.startswith("export_poses:"):
             print(line, file=sys.stderr)
@@ -52,14 +65,31 @@ def main(argv=None) -> int:
     p.add_argument("--start", type=float, default=0.02)
     p.add_argument("--end", type=float, default=0.98)
     p.add_argument("--keep-root", action="store_true")
+    p.add_argument("--bone-map", default=None,
+                   help="retarget the model through Godot's importer: preset (vrm, bvh_perfume, mixamo) or a JSON file")
+    p.add_argument("--no-fix-silhouette", action="store_true", help="retarget: keep the source rest instead of forcing a T-pose")
+    p.add_argument("--keep-project", default=None, help="retarget: keep the temporary import project at this path")
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
 
     merged = None
     with tempfile.TemporaryDirectory() as tmp:
-        for i, anim in enumerate(args.anim):
+        project = None
+        model = args.model
+        anims = list(args.anim)
+        if args.bone_map:
+            from .retarget import import_retargeted, load_bone_map
+            bone_map = load_bone_map(args.bone_map)
+            project = import_retargeted(Path(args.model), bone_map, Path(args.keep_project) if args.keep_project else Path(tmp) / "project",
+                                        fix_silhouette=not args.no_fix_silhouette)
+            model = f"res://{Path(args.model).name}"
+            # Clips embedded in the model refer to it by name; other files are not retargeted.
+            anims = [f"res://{Path(a.split(':')[0]).name}" + (":" + a.rsplit(":", 1)[1] if ":" in a and not Path(a).exists() else "")
+                     if Path(a.split(":")[0]).resolve() == Path(args.model).resolve() else a for a in anims]
+            print(f"retargeted {Path(args.model).name} with bone map {args.bone_map} (project {project})", file=sys.stderr)
+        for i, anim in enumerate(anims):
             out = Path(tmp) / f"clip{i}.json"
-            export_clip(args.model, anim, str(out), args.frames, args.hips_mode, args.start, args.end, args.keep_root)
+            export_clip(model, anim, str(out), args.frames, args.hips_mode, args.start, args.end, args.keep_root, project)
             ds = Dataset.load(out)
             merged = ds if merged is None else merged.merge(ds)
     merged.save(args.out)

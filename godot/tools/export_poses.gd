@@ -58,6 +58,12 @@ func fail(msg: String) -> int:
 
 func load_model(path: String) -> Node:
 	var root: Node = null
+	if path.begins_with("res://"):
+		# Imported by a Godot project (retargeted through the importer); run with --path <project>.
+		var packed := load(path)
+		if packed is PackedScene:
+			root = packed.instantiate()
+		return root
 	if path.to_lower().ends_with(".fbx"):
 		var fd := FBXDocument.new()
 		var fs := FBXState.new()
@@ -90,6 +96,11 @@ func load_animation(spec: String) -> Dictionary:
 		path = spec.substr(0, colon)
 		clip = spec.substr(colon + 1)
 	var lower := path.to_lower()
+	if path.begins_with("res://") and not (lower.ends_with(".tres") or lower.ends_with(".res")):
+		var scene := load_model(path)
+		if scene == null:
+			return {}
+		return _first_animation(scene, clip)
 	if lower.ends_with(".tres") or lower.ends_with(".res"):
 		var res := ResourceLoader.load(path)
 		if res is Animation:
@@ -98,6 +109,9 @@ func load_animation(spec: String) -> Dictionary:
 	var scene := load_model(path)
 	if scene == null:
 		return {}
+	return _first_animation(scene, clip)
+
+func _first_animation(scene: Node, clip: String) -> Dictionary:
 	var players: Array[Node] = scene.find_children("*", "AnimationPlayer", true, false)
 	for p in players:
 		var ap := p as AnimationPlayer

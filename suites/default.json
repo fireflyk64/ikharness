@@ -1,6 +1,6 @@
 {
   "name": "default",
-  "description": "V-Sekai idle/walk clips and the 46 s mocap clip on the V-Sekai test avatar, 6 and 11 point tracking.",
+  "description": "V-Sekai idle/walk and 46 s mocap on the V-Sekai avatar, a Perfume dance (BVH-named rig) and an MMD dance (VRM rig) retargeted through Godot; 6 and 11 point tracking.",
   "settle": 8,
   "models": {
     "vsekai_humanoid_08": "~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
@@ -23,16 +23,78 @@
       "path": "out/datasets/mocap08.json",
       "build": {
         "model": "vsekai_humanoid_08",
-        "anims": ["~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"],
+        "anims": [
+          "~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
+        ],
         "frames": 40,
         "hips_mode": "ratio:0.97"
+      }
+    },
+    "perfume_aachan": {
+      "path": "out/datasets/perfume_aachan.json",
+      "build": {
+        "model": "~/dev/animations/ANIM_perfume/ANIM_aachan.glb",
+        "anims": [
+          "~/dev/animations/ANIM_perfume/ANIM_aachan.glb"
+        ],
+        "bone_map": "bvh_perfume",
+        "frames": 30,
+        "hips_mode": "absolute"
+      }
+    },
+    "mmd_melt": {
+      "path": "out/datasets/mmd_melt.json",
+      "build": {
+        "model": "~/dev/animations/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb",
+        "anims": [
+          "~/dev/animations/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb:MMD Animation melt"
+        ],
+        "bone_map": "vrm",
+        "frames": 40,
+        "hips_mode": "absolute"
       }
     }
   },
   "entries": [
-    {"dataset": "vsk_walk", "tracker_set": "6pt", "weight": 2.0},
-    {"dataset": "vsk_walk", "tracker_set": "11pt", "weight": 1.0},
-    {"dataset": "mocap08", "tracker_set": "6pt", "weight": 2.0},
-    {"dataset": "mocap08", "tracker_set": "11pt", "weight": 1.0}
+    {
+      "dataset": "vsk_walk",
+      "tracker_set": "6pt",
+      "weight": 2.0
+    },
+    {
+      "dataset": "vsk_walk",
+      "tracker_set": "11pt",
+      "weight": 1.0
+    },
+    {
+      "dataset": "mocap08",
+      "tracker_set": "6pt",
+      "weight": 2.0
+    },
+    {
+      "dataset": "mocap08",
+      "tracker_set": "11pt",
+      "weight": 1.0
+    },
+    {
+      "dataset": "perfume_aachan",
+      "tracker_set": "6pt",
+      "weight": 2.0
+    },
+    {
+      "dataset": "perfume_aachan",
+      "tracker_set": "11pt",
+      "weight": 1.0
+    },
+    {
+      "dataset": "mmd_melt",
+      "tracker_set": "6pt",
+      "weight": 2.0
+    },
+    {
+      "dataset": "mmd_melt",
+      "tracker_set": "11pt",
+      "weight": 1.0
+    }
   ]
 }
