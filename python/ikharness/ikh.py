@@ -5,6 +5,8 @@
     ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG]
     ikh suite --ik renik [--build]
     ikh negative --dataset D --ik renik
+    ikh score --dataset D --result R [--through-shadermotion]
+    ikh shadermotion encode|decode ...
     ikh service | probe | replay | devices | pose | drop | ping
 """
 
@@ -126,6 +128,28 @@ def cmd_negative(args) -> int:
     return 0
 
 
+def cmd_score(args) -> int:
+    """Score any result file (from any engine or a ShaderMotion decode) against a dataset."""
+    from .dataset import Dataset
+    from .scoring import score
+    from .testfile import HarnessResult
+
+    dataset = Dataset.load(args.dataset)
+    result = HarnessResult.load(args.result)
+    if args.through_shadermotion:
+        from .shadermotion.readout import roundtrip_dataset
+        dataset = roundtrip_dataset(dataset, propagate_leftovers=not args.no_leftovers)
+    frames = list(result.frames)
+    if len(frames) < len(dataset.frames):
+        frames += [None] * (len(dataset.frames) - len(frames))
+    report = score(dataset, frames[: len(dataset.frames)], implementation=args.implementation or result.implementation,
+                   tracker_set=result.tracker_set or "-", result_rest=result.rest or None)
+    if args.out:
+        report.save(args.out)
+    print(report.summary())
+    return 0
+
+
 def cmd_service(args) -> int:
     script = ROOT / "monado/scripts/run_service.sh"
     os.execv("/bin/bash", ["bash", str(script)] + args.rest)
@@ -144,6 +168,7 @@ def cmd_driver(args) -> int:
 PASS_THROUGH = {
     "eval": "ikharness.run_godot",
     "replay": "ikharness.replay",
+    "shadermotion": "ikharness.shadermotion.cli",
 }
 DRIVER_CMDS = ("probe", "devices", "ping", "pose", "drop")
 
@@ -177,6 +202,7 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("status", help="what is installed, built and running").set_defaults(fn=cmd_status)
+    sub.add_parser("shadermotion", help="encode reference frames to images / decode images to results (see --help)")
 
     d = sub.add_parser("dataset", help="build or inspect reference datasets")
     dsub = d.add_subparsers(dest="dataset_cmd", required=True)
@@ -204,6 +230,15 @@ def main(argv=None) -> int:
     n.add_argument("--settle", type=int, default=8)
     n.add_argument("--ladder", default=None, help="only this ladder (hands_offset, head_yaw, feet_offset, noise)")
     n.set_defaults(fn=cmd_negative)
+
+    sc = sub.add_parser("score", help="score a result file from any source against a dataset")
+    sc.add_argument("--dataset", required=True)
+    sc.add_argument("--result", required=True, help="ikharness-result/1 JSON (harness output or `ikh shadermotion decode`)")
+    sc.add_argument("--through-shadermotion", action="store_true", help="pass the reference through ShaderMotion first so the format's floor cancels")
+    sc.add_argument("--no-leftovers", action="store_true", help="with --through-shadermotion: shader-style projection")
+    sc.add_argument("--implementation", default=None)
+    sc.add_argument("--out", default=None, help="write the score JSON here")
+    sc.set_defaults(fn=cmd_score)
 
     sv = sub.add_parser("service", help="start monado-service headless with the driver (foreground)")
     sv.add_argument("rest", nargs=argparse.REMAINDER)

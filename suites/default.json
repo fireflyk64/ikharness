@@ -3,7 +3,7 @@
   "description": "V-Sekai idle/walk and 46 s mocap on the V-Sekai avatar, a Perfume dance (BVH-named rig) and an MMD dance (VRM rig) retargeted through Godot; 6 and 11 point tracking.",
   "settle": 8,
   "models": {
-    "vsekai_humanoid_08": "~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
+    "vsekai_humanoid_08": "${IKH_DATA_DIR}/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
   },
   "datasets": {
     "vsk_walk": {
@@ -11,9 +11,9 @@
       "build": {
         "model": "vsekai_humanoid_08",
         "anims": [
-          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Idle.tres",
-          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Walk_Forward.tres",
-          "~/dev/V-Sekai-game/addons/vsk_game_framework/animations/Anim_Walk_Left.tres"
+          "data/vsk_animations/Anim_Idle.tres",
+          "data/vsk_animations/Anim_Walk_Forward.tres",
+          "data/vsk_animations/Anim_Walk_Left.tres"
         ],
         "frames": 15,
         "hips_mode": "ratio:0.995"
@@ -24,7 +24,7 @@
       "build": {
         "model": "vsekai_humanoid_08",
         "anims": [
-          "~/dev/animations/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
+          "${IKH_DATA_DIR}/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
         ],
         "frames": 40,
         "hips_mode": "ratio:0.97"
@@ -33,9 +33,9 @@
     "perfume_aachan": {
       "path": "out/datasets/perfume_aachan.json",
       "build": {
-        "model": "~/dev/animations/ANIM_perfume/ANIM_aachan.glb",
+        "model": "${IKH_DATA_DIR}/ANIM_perfume/ANIM_aachan.glb",
         "anims": [
-          "~/dev/animations/ANIM_perfume/ANIM_aachan.glb"
+          "${IKH_DATA_DIR}/ANIM_perfume/ANIM_aachan.glb"
         ],
         "bone_map": "bvh_perfume",
         "frames": 30,
@@ -45,9 +45,9 @@
     "mmd_melt": {
       "path": "out/datasets/mmd_melt.json",
       "build": {
-        "model": "~/dev/animations/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb",
+        "model": "${IKH_DATA_DIR}/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb",
         "anims": [
-          "~/dev/animations/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb:MMD Animation melt"
+          "${IKH_DATA_DIR}/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb:MMD Animation melt"
         ],
         "bone_map": "vrm",
         "frames": 40,

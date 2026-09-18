@@ -6,6 +6,8 @@ The task list lives in [`../TODO.md`](../TODO.md).
 
 | Document | Subproject | State |
 |---|---|---|
+| [getting-started.md](getting-started.md) | Install, use with your own animations, all three pipelines | current |
+| [STATUS.md](STATUS.md) | What works, numbers, findings, limitations | 2026-09-17 |
 | [monado-driver.md](monado-driver.md) | Headless Monado driver feeding trackers into OpenXR / OpenVR apps | working |
 | [datasets.md](datasets.md) | Reference poses from animations, retargeting, limb lengths | working, retargeter pending |
 | [scoring.md](scoring.md) | The metric, the single number, negative tests | working |

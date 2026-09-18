@@ -78,14 +78,17 @@ test it, and how to see whether it is working (the feedback loop).
       GDScript), `ikh eval --readout shadermotion` reads poses back from the pixels and scores
       against the round-tripped reference. GDScript and Python encoders agree to 0.013°.
 - [ ] Report / fix upstream `swing_twist_inv` in V-Sekai/godot-shader-motion (unreliable inverse).
-- [ ] `ikh shadermotion encode|decode` for arbitrary images, folders and video frames.
+- [x] `ikh shadermotion encode|decode` for images and folders (video: extract frames with ffmpeg first).
 - [x] ShaderMotion *shader* in Godot (goal 6): skinned recorder mesh (normals + positions only,
       skinned tangents proved unusable) and fragment shader, rendered with software OpenGL under
       Xvfb; `ikh eval --readout shadermotion-gpu`. Matches the Python encoder within 0.026°.
 - [ ] GPU readout with RenIK (non-uniform stretch skews skinned normals) and on the full suite.
-- [ ] Capture path (goal 7): per-frame screen capture and video recording (MovieWriter / PNG
-      sequence) plus decode back to bone rotations in Godot; round-trip test against the
-      dataset. (`docs/shadermotion.md`)
+- [x] Replication: `scripts/setup.sh` (pinned Godot, Python lock, data repos at pinned commits,
+      vendored MIT walk clips), `docs/getting-started.md`, `docs/STATUS.md`, `ikh score` and
+      `ikh shadermotion encode|decode` for external tools.
+- [ ] Capture path (goal 7): grab frames from a *separate* application window (X11 screenshot
+      of a Godot app showing the recorder, then `ikh shadermotion decode`), then a recorded
+      video (MovieWriter / ffmpeg → PNG); quantify codec loss. (`docs/shadermotion.md`)
 - [ ] Reports: `ikh report` comparing several runs (markdown table + JSON), per-bone deltas.
 
 ## Later

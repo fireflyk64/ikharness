@@ -7,6 +7,8 @@ original animation. The goal is a single, comparable score per implementation
 (Godot, Unity, VRChat, ...) and per tracker configuration (3-point, 6-point,
 11-point, ...).
 
+**Start here:** [docs/getting-started.md](docs/getting-started.md) (install, your own FBX/GLB clips, Godot / ShaderMotion / Monado pipelines) · [docs/STATUS.md](docs/STATUS.md) (what works, numbers, findings) · [TODO.md](TODO.md).
+
 ## Pipeline
 
 ```
@@ -28,6 +30,16 @@ original animation. The goal is a single, comparable score per implementation
 | Unity harness (C#) | planned | `unity/` |
 | Bone-to-pixel avatar shader + frame capture for closed-source apps | planned | `capture/` |
 | Multi-run comparison reports | planned | |
+
+## Quick start
+
+```sh
+scripts/setup.sh --apt              # venv, pinned deps, Godot 4.7.2, data repos (add --with-monado for the runtime)
+scripts/ikh status
+scripts/ikh suite --ik builtin --build
+```
+
+Full instructions: [docs/getting-started.md](docs/getting-started.md).
 
 ## Quick start (Monado driver)
 

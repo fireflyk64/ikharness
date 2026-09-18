@@ -28,7 +28,9 @@ def quality_from_deg(deg: float) -> float:
 
 
 def expand(path: str) -> Path:
-    p = Path(os.path.expanduser(path))
+    """Recipe paths: ``${IKH_DATA_DIR}`` (default ~/dev/animations), ``~`` and repo-relative paths."""
+    data_dir = os.environ.get("IKH_DATA_DIR", str(Path.home() / "dev" / "animations"))
+    p = Path(os.path.expanduser(path.replace("${IKH_DATA_DIR}", data_dir)))
     return p if p.is_absolute() else ROOT / p
 
 
