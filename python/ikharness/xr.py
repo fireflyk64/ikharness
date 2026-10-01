@@ -160,11 +160,17 @@ def strip_region(window: Tuple[int, int], columns: int = 3) -> Tuple[int, int, i
 def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_dir: Path = ROOT / "out" / "xr",
         frames: int = 0, eye: int = 256, window: Tuple[int, int] = (640, 360), capture: str = "fbdir",
         calibrate_hold: float = 1.0, min_dwell: float = 0.3, settle_timeout: float = 5.0, port: int = 4343,
-        spectator: bool = True, perturb: Optional[str] = None, log=print):
+        spectator: bool = True, perturb: Optional[str] = None, video: Optional[str] = None, video_fps: int = 20,
+        video_hold: float = 0.2, log=print):
     """Returns (report through pixels, info dict). Frames are saved as ``frame_<index>.png``.
 
     ``perturb`` is ``name:magnitude[:seed]`` (see :mod:`ikharness.negative`), applied to the
     tracker poses before they enter the driver; the calibration frame gets index -1.
+
+    ``video`` names a preset of :mod:`ikharness.video` (for example ``x264-crf23``): the
+    demo's display is then also recorded with ``ffmpeg -f x11grab`` during the replay, every
+    pose is held ``video_hold`` seconds longer, and the poses are decoded a second time from
+    the recording (``info["video"]``), which shows what a stream of the screen would give.
     """
     from .shadermotion.readout import decode_image, roundtrip_dataset
 
@@ -216,6 +222,12 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
             decoded: List[Optional[object]] = []
             unstable = 0
             previous = None
+            recorder = None
+            shown_at: List[float] = []
+            video_path = Path(out_dir) / f"{stem}.{video}.mkv" if video else None
+            if video:
+                from .video import Recorder
+                recorder = Recorder(demo.display, video_path, window, fps=video_fps, preset=video).start()
             started = time.monotonic()
             for i in range(count):
                 poses = poses_for(i)
@@ -227,7 +239,12 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
                 previous = image[region[1]:region[1] + region[3], region[0]:region[0] + region[2]].copy()
                 save_png(image, frame_dir / f"frame_{i:05d}.png")
                 decoded.append(decode_image(image, dataset.skeleton, time=dataset.frames[i].time))
+                if recorder is not None:
+                    shown_at.append(time.time() + video_hold / 2)
+                    time.sleep(video_hold)
             seconds = time.monotonic() - started
+            if recorder is not None:
+                recorder.stop()
             info.update({"unstable_frames": unstable, "seconds_per_frame": seconds / max(count, 1), "grabs": grabber.grabs,
                          "demo_peak_rss_mb": demo.guard.peak_rss_mb, "service_peak_rss_mb": service.guard.peak_rss_mb,
                          "frame_dir": str(frame_dir)})
@@ -237,6 +254,18 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
     via_pixels = score(roundtrip_dataset(reference, propagate_leftovers=False), decoded,
                        implementation=f"{ik}+openxr+screen", tracker_set=tracker_set)
     raw = score(reference, decoded, implementation=f"{ik}+openxr+screen(raw ref)", tracker_set=tracker_set)
+    if video:
+        from .shadermotion.readout import decode_directory
+        from .video import compare_frames, extract_at, frame_times
+        video_frames = Path(out_dir) / f"{stem}.{video}.frames"
+        extract_at(video_path, shown_at, video_frames)
+        from_video = decode_directory(video_frames, dataset.skeleton, count=count)
+        video_report = score(roundtrip_dataset(reference, propagate_leftovers=False), from_video,
+                             implementation=f"{ik}+openxr+video({video})", tracker_set=tracker_set)
+        info["video"] = {"preset": video, "path": str(video_path), "bytes": video_path.stat().st_size,
+                         "video_frames": len(frame_times(video_path)), "fps": video_fps,
+                         "body_score_deg": video_report.body_score_deg, "weighted_score_deg": video_report.weighted_score_deg,
+                         "difference_from_screen": compare_frames(decoded, from_video).to_dict(), "frame_dir": str(video_frames)}
     doc = via_pixels.to_dict()
     doc["readout"] = "openxr-screen"
     doc["raw_reference_weighted_deg"] = raw.weighted_score_deg
@@ -262,16 +291,24 @@ def main(argv=None) -> int:
     p.add_argument("--port", type=int, default=4343)
     p.add_argument("--no-spectator", action="store_true", help="black window with only the ShaderMotion slots")
     p.add_argument("--perturb", default=None, help="name:magnitude[:seed] applied to the trackers, see ikharness.negative")
+    p.add_argument("--video", default=None, metavar="PRESET",
+                   help="also record the display with ffmpeg (preset from ikharness.video, e.g. x264-crf23) and score from the recording")
+    p.add_argument("--video-fps", type=int, default=20)
     args = p.parse_args(argv)
     w, h = (int(v) for v in args.window.split("x"))
     report, info = run(Path(args.dataset), args.tracker_set, args.ik, Path(args.out_dir), args.frames, args.eye, (w, h),
                        args.capture, args.calibrate_hold, args.min_dwell, port=args.port, spectator=not args.no_spectator,
-                       perturb=args.perturb)
+                       perturb=args.perturb, video=args.video, video_fps=args.video_fps)
     print(report.summary())
     print(f"xr: {info['frames']} frames off the screen ({info['capture']}), {info['seconds_per_frame']:.2f} s/frame, "
           f"{info['unstable_frames']} unstable; pixels vs raw reference {info['raw_reference_weighted_deg']:.2f} deg weighted; "
           f"peak memory demo {info['demo_peak_rss_mb']:.0f} MB, service {info['service_peak_rss_mb']:.0f} MB")
     print(f"xr: screenshots in {info['frame_dir']}")
+    if "video" in info:
+        v, d = info["video"], info["video"]["difference_from_screen"]
+        print(f"xr: from the recording ({v['preset']}, {v['video_frames']} frames, {v['bytes'] / 1e6:.2f} MB): body score "
+              f"{v['body_score_deg']:.2f} deg; poses differ from the screenshots by {d['mean_deg']:.3f} deg mean, "
+              f"{d['max_deg']:.2f} max ({d['worst_bone']}); {v['path']}")
     return 0
 
 

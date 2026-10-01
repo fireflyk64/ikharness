@@ -10,6 +10,8 @@
     ikh calibrate --dataset D --tracker-set 6pt      # T-pose, hold 1 s, pull both triggers
     ikh xr --dataset D --tracker-set 6pt --ik builtin   # service + Godot OpenXR demo + calibration + screen readout
     ikh screenshot (--fbdir DIR | --display :N) --out shot.png
+    ikh video roundtrip --images DIR --skeleton D    # what video codecs do to ShaderMotion poses
+    ikh video extract --video V --out-dir DIR
     ikh service | probe | replay | devices | pose | drop | ping
 """
 
@@ -186,6 +188,7 @@ PASS_THROUGH = {
     "shadermotion": "ikharness.shadermotion.cli",
     "xr": "ikharness.xr",
     "screenshot": "ikharness.screen",
+    "video": "ikharness.video",
 }
 DRIVER_CMDS = ("probe", "devices", "ping", "pose", "drop")
 
@@ -226,6 +229,7 @@ def main(argv=None) -> int:
     sub.add_parser("shadermotion", help="encode reference frames to images / decode images to results (see --help)")
     sub.add_parser("xr", help="whole OpenXR chain unattended: Monado, the Godot XR demo, calibration, poses read off the screen")
     sub.add_parser("screenshot", help="grab an Xvfb framebuffer or an X display to a PNG")
+    sub.add_parser("video", help="codec loss on ShaderMotion frames (roundtrip), frames out of a recording (extract)")
 
     d = sub.add_parser("dataset", help="build or inspect reference datasets")
     dsub = d.add_subparsers(dest="dataset_cmd", required=True)

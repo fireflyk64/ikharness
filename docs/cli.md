@@ -24,7 +24,10 @@ ikh calibrate --dataset D --tracker-set 6pt  T-pose, hold 1 s, pull both trigger
 ikh xr --dataset D --tracker-set 6pt --ik builtin [--frames N] [--capture fbdir|import|ffmpeg] [--perturb NAME:MAG]
                                             the whole OpenXR chain unattended: monado-service, the Godot XR
                                             demo under Xvfb, T-pose + triggers, replay, poses read off the screen
+         [--video x264-crf23]               also record the display with ffmpeg and score from the recording
 ikh screenshot (--fbdir DIR | --display :N) --out shot.png     grab an Xvfb framebuffer or any X display
+ikh video roundtrip --images DIR --skeleton D [--score]        what video codecs do to ShaderMotion poses
+ikh video extract --video V --out-dir DIR [--every N | --times T.json]    recording -> frames
 ikh devices | ikh pose DEV x y z [qx qy qz qw] | ikh drop DEV     poke the driver
 ```
 

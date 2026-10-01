@@ -36,7 +36,8 @@ def test_action_map_has_the_profiles_the_driver_offers():
 @pytest.fixture(scope="module")
 def xr_run(tmp_path_factory):
     out = tmp_path_factory.mktemp("xr")
-    report, info = run(DATA / "mini_walk.json", "6pt", "builtin", out, port=PORT, log=lambda *_: None)
+    report, info = run(DATA / "mini_walk.json", "6pt", "builtin", out, port=PORT, log=lambda *_: None,
+                       video="x264-crf23" if shutil.which("ffmpeg") else None)
     return out, report, info
 
 
@@ -73,6 +74,17 @@ def test_score_off_the_screen_matches_the_in_process_harness(xr_run, tmp_path):
     assert report.body_score_deg == pytest.approx(direct.body_score_deg, abs=1.5)
     # Head and hips are tracked directly, so they must come back exact through the whole chain.
     assert report.bones["Head"].angle_mean_deg < 0.5 and report.bones["Hips"].angle_mean_deg < 0.5
+
+
+def test_recording_of_the_screen_gives_the_same_poses(xr_run):
+    _, report, info = xr_run
+    if "video" not in info:
+        pytest.skip("needs ffmpeg")
+    v = info["video"]
+    assert v["video_frames"] >= 6 and Path(v["path"]).stat().st_size > 1000
+    assert v["difference_from_screen"]["frames"] == 3
+    assert v["difference_from_screen"]["max_deg"] < 2.0 and v["difference_from_screen"]["mean_deg"] < 0.5
+    assert v["body_score_deg"] == pytest.approx(report.body_score_deg, abs=0.3)
 
 
 def test_wrong_trackers_score_worse_through_openxr(xr_run, tmp_path):

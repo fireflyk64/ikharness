@@ -106,8 +106,10 @@ test it, and how to see whether it is working (the feedback loop).
       `ikh shadermotion encode|decode` for external tools.
 - [x] Capture path (goal 7), part 1: frames grabbed from a *separate* application's screen
       (`python/ikharness/screen.py`), decoded and scored (`ikh xr`). (`docs/godot-openxr.md`)
-- [ ] Capture path, part 2: recorded video (ffmpeg x11grab / MovieWriter → frames); quantify
-      codec loss. (`docs/shadermotion.md`)
+- [x] Capture path, part 2: recorded video. `ikh video roundtrip` quantifies codec loss
+      (H.264 CRF 23: 0.09° mean, 0.26° max; CRF 35: 0.2° / 0.6°; suite score unchanged to 0.02°),
+      `ikh xr --video PRESET` records the display live with ffmpeg x11grab and scores the
+      recording (identical score). (`docs/shadermotion.md`)
 - [ ] Reports: `ikh report` comparing several runs (markdown table + JSON), per-bone deltas.
 
 ## Later

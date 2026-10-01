@@ -69,6 +69,10 @@ as `unstable` in the output.
 The last two work on any X display, so the same code reads a window of an application we
 do not control (`ikh screenshot --display :N --out shot.png`, then `ikh shadermotion decode`).
 
+`--video x264-crf23` additionally records the display with `ffmpeg -f x11grab` during the
+replay and decodes the poses a second time from the recording (see `docs/shadermotion.md`
+for the codec table); the recording stays in `out/xr/` and is a convenient way to watch a run.
+
 ## Run it by hand (to watch it)
 
 ```sh

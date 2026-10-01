@@ -161,8 +161,39 @@ Findings worth keeping (`godot/gpu_probe/` has the probes):
 `python/ikharness/screen.py` reads the pixels of a display from outside the application:
 the Xvfb framebuffer file, ImageMagick `import`, or `ffmpeg -f x11grab`. `ikh xr` uses it to
 read the Godot XR demo's window (spectator view with the slot columns on its left edge) and
-gets the same score as the in-process readout (`docs/godot-openxr.md`). Recorded video and
-codec loss are still open.
+gets the same score as the in-process readout (`docs/godot-openxr.md`).
+
+### What exists: video (`python/ikharness/video.py`, `ikh video`)
+
+`ikh video roundtrip --images DIR --skeleton D [--score]` pushes lossless ShaderMotion frames
+through video codecs (each pose held 3 video frames, the middle one read back) and reports
+what the codec did to the decoded poses. On the 45 screenshots of the walk run (640×360,
+spectator view plus slot columns, 2026-09-30):
+
+| Codec | kB per pose | mean | p95 | max | hips | suite score |
+|---|---|---|---|---|---|---|
+| PNG screenshots | 21.6 | 0° | 0° | 0° | 0 mm | 16.67° |
+| FFV1 (lossless) | 84.3 | 0° | 0° | 0° | 0 mm | 16.67° |
+| H.264 CRF 18, 4:4:4 | 2.5 | 0.064° | 0.12° | 0.18° | 0.8 mm | 16.68° |
+| H.264 CRF 18, 4:2:0 | 2.4 | 0.067° | 0.13° | 0.19° | 0.9 mm | 16.68° |
+| H.264 CRF 23 | 1.5 | 0.093° | 0.17° | 0.26° | 1.1 mm | 16.68° |
+| H.264 CRF 28 | 1.0 | 0.134° | 0.26° | 0.40° | 2.0 mm | 16.68° |
+| H.264 CRF 35 | 0.8 | 0.203° | 0.42° | 0.59° | 4.0 mm | 16.69° |
+| VP9 CRF 32 | 4.5 | 0.042° | 0.09° | 0.16° | 0.8 mm | 16.67° |
+| MJPEG q5 | 39.3 | 0.037° | 0.07° | 0.10° | 0.4 mm | 16.68° |
+
+So ordinary streaming quality costs a few hundredths of a degree against IK errors of
+10 to 20 degrees: the Gray-coded digits do what they were designed for, and 4:2:0 chroma
+subsampling does not matter at 8×8-pixel squares. Color handling must be consistent,
+though: both directions use full-range BT.709 (`TO_YUV` / `TO_RGB` in `video.py`); a
+limited-range mismatch shifts every digit.
+
+`ikh xr --video x264-crf23` records the demo's display live with `ffmpeg -f x11grab`
+(wall-clock timestamps in Matroska), pairs each pose with the video frame nearest to the
+moment it was at rest on screen, and scores the recording: 16.67° from the recording as
+from the screenshots, poses 0.056° apart on average (0.21° max), 0.22 MB for 37 s.
+`ikh video extract --video V --out-dir DIR [--every N | --times T.json]` turns any
+recording into frames for `ikh shadermotion decode`.
 
 ## Feedback loop
 
