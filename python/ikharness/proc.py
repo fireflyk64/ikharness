@@ -69,6 +69,7 @@ class GuardedResult:
     peak_rss_mb: float
     seconds: float
     killed: str = ""  # "", "memory" or "timeout"
+    peak_tasks: int = 0  # most threads alive at once in the command's session
 
     @property
     def log(self) -> str:
@@ -100,8 +101,54 @@ def container_free_mb() -> Optional[float]:
         return None
 
 
+def container_free_pids() -> Optional[int]:
+    """Free process/thread slots under the container's pids limit, or None when unlimited."""
+    try:
+        limit = Path("/sys/fs/cgroup/pids.max").read_text().strip()
+        if limit == "max":
+            return None
+        return int(limit) - int(Path("/sys/fs/cgroup/pids.current").read_text())
+    except (OSError, ValueError):
+        return None
+
+
+def session_tasks(sid: int) -> int:
+    """Number of threads in all processes of session ``sid``."""
+    total = 0
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        try:
+            stat = Path(f"/proc/{entry}/stat").read_text()
+            rest = stat[stat.rindex(")") + 2:].split()
+            if int(rest[3]) == sid:
+                total += int(rest[17])  # num_threads
+        except (OSError, ValueError, IndexError):
+            continue
+    return total
+
+
+def ensure_pid_headroom(min_free: Optional[int] = None, wait: float = 30.0) -> Optional[int]:
+    """Refuse to start when the container is about to run out of process slots.
+
+    Zombies that PID 1 never reaps count against ``pids.max``; when it is exhausted every
+    fork in the container fails, including other sessions' work.
+    """
+    min_free = min_free if min_free is not None else int(os.environ.get("IKH_MIN_FREE_PIDS", "24"))
+    deadline = time.monotonic() + wait
+    while True:
+        free = container_free_pids()
+        if free is None or free >= min_free:
+            return free
+        if time.monotonic() > deadline:
+            raise NoHeadroom(f"only {free} process slots free in this container (need {min_free}); zombies or other "
+                             "sessions hold the rest. Restart the container or set IKH_MIN_FREE_PIDS to override.")
+        time.sleep(2.0)
+
+
 def ensure_headroom(min_free_mb: Optional[int] = None, wait: float = 60.0) -> Optional[float]:
     """Block until the container has ``min_free_mb`` free (other sessions share it), else raise."""
+    ensure_pid_headroom()
     min_free_mb = min_free_mb if min_free_mb is not None else int(os.environ.get("IKH_MIN_FREE_MB", "1200"))
     deadline = time.monotonic() + wait
     while True:
@@ -136,6 +183,8 @@ def run_guarded(cmd: Sequence[str], timeout: float = 600.0, max_rss_mb: Optional
     max_rss_mb = max_rss_mb or DEFAULT_MAX_RSS_MB
     ensure_headroom()
     t0 = time.monotonic()
+    env = dict(os.environ if env is None else env)
+    env.setdefault("LP_NUM_THREADS", "1")  # llvmpipe / lavapipe worker threads; slots are scarce here
     proc = subprocess.Popen(list(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, cwd=cwd,
                             start_new_session=True, preexec_fn=(lambda: os.nice(nice)) if nice else None)
     out: List[str] = []
@@ -145,10 +194,12 @@ def run_guarded(cmd: Sequence[str], timeout: float = 600.0, max_rss_mb: Optional
     for r in readers:
         r.start()
     peak = 0.0
+    peak_tasks = 0
     killed = ""
     while proc.poll() is None:
         rss = session_rss_mb(proc.pid)
         peak = max(peak, rss)
+        peak_tasks = max(peak_tasks, session_tasks(proc.pid))
         if rss > max_rss_mb:
             killed = "memory"
         elif time.monotonic() - t0 > timeout:
@@ -160,7 +211,7 @@ def run_guarded(cmd: Sequence[str], timeout: float = 600.0, max_rss_mb: Optional
     proc.wait()
     for r in readers:
         r.join(timeout=2)
-    return GuardedResult(proc.returncode, "".join(out), "".join(err), peak, time.monotonic() - t0, killed)
+    return GuardedResult(proc.returncode, "".join(out), "".join(err), peak, time.monotonic() - t0, killed, peak_tasks)
 
 
 class Guard:
@@ -205,7 +256,7 @@ def main(argv=None) -> int:
     if not args.quiet:
         sys.stdout.write(res.stdout[-4000:])
         sys.stderr.write(res.stderr[-4000:])
-    print(f"[guard] rc={res.returncode} peak_rss={res.peak_rss_mb:.0f} MB time={res.seconds:.1f}s" + (f" KILLED ({res.killed})" if res.killed else ""))
+    print(f"[guard] rc={res.returncode} peak_rss={res.peak_rss_mb:.0f} MB peak_tasks={res.peak_tasks} time={res.seconds:.1f}s" + (f" KILLED ({res.killed})" if res.killed else ""))
     return res.returncode if not res.killed else 99
 
 

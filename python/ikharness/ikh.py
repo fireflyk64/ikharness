@@ -24,6 +24,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _is_zombie(pid: str) -> bool:
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        return stat[stat.rindex(")") + 2:].split()[0] == "Z"
+    except (OSError, ValueError, IndexError):
+        return False
+
+
 def cmd_status(args) -> int:
     ok = True
 
@@ -48,7 +56,11 @@ def cmd_status(args) -> int:
     print(f"  [{'ok' if running else '..'}] {'driver listening':<28} 127.0.0.1:{port}{'' if running else ' (start with: ikh service)'}")
     ds = sorted((ROOT / "out/datasets").glob("*.json")) if (ROOT / "out/datasets").exists() else []
     print(f"  [{'ok' if ds else '..'}] {'datasets':<28} {', '.join(p.stem for p in ds) or 'none (ikh suite --build)'}")
-    from .proc import DEFAULT_MAX_RSS_MB, container_free_mb, foreign_engine_processes
+    from .proc import DEFAULT_MAX_RSS_MB, container_free_mb, container_free_pids, foreign_engine_processes
+    free_pids = container_free_pids()
+    if free_pids is not None:
+        zombies = sum(1 for e in os.listdir("/proc") if e.isdigit() and _is_zombie(e))
+        print(f"  [{'ok' if free_pids > 100 else '!!'}] {'process slots free':<28} {free_pids} ({zombies} zombies hold slots; PID 1 must reap them or the container be restarted)")
     free = container_free_mb()
     if free is not None:
         print(f"  [{'ok' if free > 1200 else '!!'}] {'container memory free':<28} {free:.0f} MB (guard kills a step above {DEFAULT_MAX_RSS_MB} MB)")

@@ -57,6 +57,19 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] Memory guard for every Godot / Monado launch, headroom checks, test suite in parts,
       after the shared 8 GB container ran out of memory. (`docs/resources.md`)
 
+## Round of 2026-09-30 (owner: fix squished projection, automate OpenXR feed + screen readout, T-pose calibration)
+
+- [x] Squished projection: square 1024² eyes with symmetric 100° FOV in the driver, and the null
+      compositor patched to recommend the HMD's per-eye size instead of 320×240 (`monado/patches/0002`).
+- [x] Controller inputs over the wire (`INPUT`: triggers, buttons, sticks) and several clients with
+      `GET_STATE`, so both triggers can be pushed remotely and a demo can read tracker poses.
+- [x] Guard knows about process slots (`IKH_MIN_FREE_PIDS`, `ikh status`), after the container hit
+      its pids limit through unreaped zombies.
+- [ ] T-pose calibration: reference rig in T-pose, wait a second, push both triggers
+      (`ikh calibrate`, harness calibration mode, tests).
+- [ ] Godot OpenXR demo on Monado with the ShaderMotion recorder on screen, `ikh xr` automation
+      (service + demo + replay + calibration), reading pixels off the screen.
+
 ## Next
 
 - [ ] RenIK adapter: tune pole-target feeding for elbow/knee trackers (on the mocap set the

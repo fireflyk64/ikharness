@@ -24,6 +24,12 @@ load, the container ran out of memory and restarted. Rules since then:
    keeps Xvfb as a direct child and waits for it. `run_guarded` waits for everything it starts.
    Check with `ps -eo stat,comm | awk '$1 ~ /^Z/' | sort | uniq -c`.
 
+7. **Process slots are a resource too.** `ensure_headroom()` also refuses to start when fewer than
+   `IKH_MIN_FREE_PIDS` (24) slots are free, and `ikh status` prints free slots and zombie count.
+   On 2026-09-30 the container sat at 979/1024 with 840 zombies and the kernel had already
+   refused 138 forks; only a container restart cleared it. `run_guarded` sets
+   `LP_NUM_THREADS=1` so the software rasterizer does not spawn extra threads.
+
 ## Measured peaks (2026-09-16, this container)
 
 | Step | Peak RSS | Time |
