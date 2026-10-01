@@ -8,6 +8,8 @@
     ikh score --dataset D --result R [--through-shadermotion]
     ikh shadermotion encode|decode ...
     ikh calibrate --dataset D --tracker-set 6pt      # T-pose, hold 1 s, pull both triggers
+    ikh xr --dataset D --tracker-set 6pt --ik builtin   # service + Godot OpenXR demo + calibration + screen readout
+    ikh screenshot (--fbdir DIR | --display :N) --out shot.png
     ikh service | probe | replay | devices | pose | drop | ping
 """
 
@@ -182,6 +184,8 @@ PASS_THROUGH = {
     "eval": "ikharness.run_godot",
     "replay": "ikharness.replay",
     "shadermotion": "ikharness.shadermotion.cli",
+    "xr": "ikharness.xr",
+    "screenshot": "ikharness.screen",
 }
 DRIVER_CMDS = ("probe", "devices", "ping", "pose", "drop")
 
@@ -220,6 +224,8 @@ def main(argv=None) -> int:
     sub.add_parser("status", help="what is installed, built and running").set_defaults(fn=cmd_status)
     sub.add_parser("calibrate", help="T-pose calibration gesture through the Monado driver (see ikh replay --help)")
     sub.add_parser("shadermotion", help="encode reference frames to images / decode images to results (see --help)")
+    sub.add_parser("xr", help="whole OpenXR chain unattended: Monado, the Godot XR demo, calibration, poses read off the screen")
+    sub.add_parser("screenshot", help="grab an Xvfb framebuffer or an X display to a PNG")
 
     d = sub.add_parser("dataset", help="build or inspect reference datasets")
     dsub = d.add_subparsers(dest="dataset_cmd", required=True)

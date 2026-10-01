@@ -69,18 +69,21 @@ test it, and how to see whether it is working (the feedback loop).
       `ikh calibrate` / `ikh replay --calibrate` (gesture through the driver), harness
       `--calibration tpose` (root + per-tracker offsets derived from the T-pose frame),
       `tracker_mount` perturbation absorbed by calibration. (`docs/calibration.md`)
-- [ ] Godot OpenXR demo on Monado with the ShaderMotion recorder on screen, `ikh xr` automation
-      (service + demo + replay + calibration), reading pixels off the screen.
+- [x] Godot OpenXR demo on Monado with the ShaderMotion recorder on screen (`godot/harness/xr_demo.gd`),
+      `ikh xr` automation (service + demo + calibration by triggers + replay), poses read off the
+      screen (`ikh screenshot`, Xvfb framebuffer / `import` / `ffmpeg`). Walk 6pt builtin: 16.67°
+      through OpenXR and the screen vs 16.89° in-process. Controllers also emulate Touch because
+      Godot's default action map has no Index profile. (`docs/godot-openxr.md`)
 
 ## Next
 
 - [ ] RenIK adapter: tune pole-target feeding for elbow/knee trackers (on the mocap set the
       11-point run leaves hands 3.8 cm off, 6-point 0.4 cm); enable
       `RenIKPlacement3D` for 3/4-point sets (needs a floor collider). (`docs/godot-harness.md`)
-- [ ] Godot as OpenXR client through Monado (goal 5): Godot scene reading head/hands via
-      OpenXRInterface, trackers via a Monado extension Godot understands. Godot has no
-      `XR_MNDX_xdev_space` support, so this needs `XR_HTCX_vive_tracker_interaction` in Monado's
-      OpenXR layer (marked ALWAYS_DISABLED upstream). (`docs/godot-openxr.md`)
+- [x] Godot as OpenXR client through Monado (goal 5): head, hands and triggers through
+      OpenXRInterface, body trackers through the driver's state query. (`docs/godot-openxr.md`)
+- [ ] `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer (marked ALWAYS_DISABLED
+      upstream), so body trackers reach Godot through OpenXR and the side channel can go.
 - [ ] Godot as preprocessor (goal 5): `ikh dataset export-retargeted` writes retargeted
       animations (Godot `.res`, glTF) with the standard rest, for OpenXR/Unity consumers.
 - [x] ShaderMotion reference codec in Python (goal 6, step 1): colors ↔ numbers, hips float
@@ -101,9 +104,10 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] Replication: `scripts/setup.sh` (pinned Godot, Python lock, data repos at pinned commits,
       vendored MIT walk clips), `docs/getting-started.md`, `docs/STATUS.md`, `ikh score` and
       `ikh shadermotion encode|decode` for external tools.
-- [ ] Capture path (goal 7): grab frames from a *separate* application window (X11 screenshot
-      of a Godot app showing the recorder, then `ikh shadermotion decode`), then a recorded
-      video (MovieWriter / ffmpeg → PNG); quantify codec loss. (`docs/shadermotion.md`)
+- [x] Capture path (goal 7), part 1: frames grabbed from a *separate* application's screen
+      (`python/ikharness/screen.py`), decoded and scored (`ikh xr`). (`docs/godot-openxr.md`)
+- [ ] Capture path, part 2: recorded video (ffmpeg x11grab / MovieWriter → frames); quantify
+      codec loss. (`docs/shadermotion.md`)
 - [ ] Reports: `ikh report` comparing several runs (markdown table + JSON), per-bone deltas.
 
 ## Later

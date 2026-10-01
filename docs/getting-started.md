@@ -184,6 +184,18 @@ can run on Monado's OpenVR target, where the trackers appear as generic trackers
 holds each pose until the next frame, so `--dwell` is your settle time. Details, the wire
 protocol (for feeding it from another program) and limitations: `docs/monado-driver.md`.
 
+### The whole chain in one command
+
+```sh
+scripts/ikh xr --dataset out/datasets/mine.json --tracker-set 6pt --ik builtin
+```
+
+starts the runtime, starts a Godot OpenXR application (`godot/harness/xr_demo.gd`) on a
+private virtual display, puts the reference rig into its T-pose, waits a second, pulls both
+triggers so the application calibrates, replays the frames, reads the ShaderMotion pixels
+off the screen after each one and prints the score. Screenshots land in `out/xr/`. See
+`docs/godot-openxr.md` for how to run the pieces by hand and watch the window.
+
 ## 6. Where things end up, and how to know they are right
 
 | Path | Content |

@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 # Run the test suite in parts, one heavy component at a time, reporting container headroom
-# between parts (see docs/resources.md). Usage: scripts/run_tests.sh [python|godot|gpu|retarget|monado ...]
+# between parts (see docs/resources.md). Usage: scripts/run_tests.sh [python|godot|gpu|retarget|monado|xr ...]
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 PY=".venv/bin/python"
 export GODOT="${GODOT:-$HOME/.local/bin/godot}"
 parts=("$@")
-[ ${#parts[@]} -eq 0 ] && parts=(python godot gpu retarget monado)
+[ ${#parts[@]} -eq 0 ] && parts=(python godot gpu retarget monado xr)
 rc=0
 headroom() { "$PY" -c "from ikharness.proc import container_free_mb as f; v=f(); print('   container free: ' + ('unlimited' if v is None else f'{v:.0f} MB'))"; }
 for part in "${parts[@]}"; do
     case "$part" in
-        python)   files="tests/test_dataset_pipeline.py tests/test_protocol.py tests/test_negative.py tests/test_proc.py tests/test_shadermotion_codec.py tests/test_shadermotion_pose.py tests/test_cli.py" ;;
+        python)   files="tests/test_dataset_pipeline.py tests/test_protocol.py tests/test_negative.py tests/test_proc.py tests/test_shadermotion_codec.py tests/test_shadermotion_pose.py tests/test_cli.py tests/test_calibration.py tests/test_screen.py" ;;
         godot)    files="tests/test_godot_harness.py" ;;
         gpu)      files="tests/test_godot_gpu.py" ;;
         retarget) files="tests/test_retarget.py" ;;
         monado)   files="tests/test_monado_driver.py" ;;
+        xr)       files="tests/test_xr_demo.py" ;;
         *) echo "unknown part $part"; exit 2 ;;
     esac
     echo "== $part"; headroom

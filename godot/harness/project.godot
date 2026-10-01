@@ -8,3 +8,10 @@ config/features=PackedStringArray("4.7")
 
 [rendering]
 renderer/rendering_method="gl_compatibility"
+
+[xr]
+; OpenXR stays off for the headless harness; xr_demo.gd is started with --xr-mode on.
+openxr/enabled=false
+openxr/reference_space=1
+openxr/default_action_map="res://openxr_action_map.tres"
+shaders/enabled=true

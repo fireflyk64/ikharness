@@ -156,6 +156,14 @@ Findings worth keeping (`godot/gpu_probe/` has the probes):
 6. **Scoring.** Decoded rotations are rest-relative deltas already; feed them to the scorer
    as a result file with the avatar's rest.
 
+### What exists: capture from another process's screen
+
+`python/ikharness/screen.py` reads the pixels of a display from outside the application:
+the Xvfb framebuffer file, ImageMagick `import`, or `ffmpeg -f x11grab`. `ikh xr` uses it to
+read the Godot XR demo's window (spectator view with the slot columns on its left edge) and
+gets the same score as the in-process readout (`docs/godot-openxr.md`). Recorded video and
+codec loss are still open.
+
 ## Feedback loop
 
 * Encoder → decoder round trip on synthetic rotations: max error < 1° (quantisation).

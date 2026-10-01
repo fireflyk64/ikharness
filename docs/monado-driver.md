@@ -36,6 +36,14 @@ pulls both triggers (visible as the Index `trigger/value` action in OpenXR). A s
 client can connect while a feeder is active and call `get_state()` to read every device's
 current pose.
 
+The controllers are Valve Index controllers that also answer to the Oculus Touch and the
+simple-controller profiles (the emulation table of Monado's own Index driver). That matters
+for Godot: its default action map has no Index profile, so without the emulation a stock
+Godot project receives neither hand poses nor buttons.
+
+`python/ikharness/service.py` (`MonadoService`) starts and stops a guarded service from
+Python with a temporary config (eye size, tracker list); `ikh xr` uses it.
+
 ## Open items
 
 * No `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer: trackers reach OpenXR apps

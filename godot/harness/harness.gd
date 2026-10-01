@@ -23,6 +23,7 @@ const RESULT_FORMAT := "ikharness-result/1"
 const ShaderMotionEncoder := preload("res://shadermotion_encoder.gd")
 const ShaderMotionGPU := preload("res://shadermotion_gpu.gd")
 const Calibration := preload("res://calibration.gd")
+const Rig := preload("res://rig.gd")
 
 var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": "", "shadermotion-gpu-dir": "", "calibration": "rules"}
 
@@ -125,31 +126,10 @@ static func rot_of(d: Dictionary) -> Quaternion:
 static func xform_of(d: Dictionary) -> Transform3D:
 	return Transform3D(Basis(rot_of(d)), pos_of(d))
 
-# Skeleton3D from the test file's skeleton block. Humanoid bones only; a Root
-# bone is inserted above Hips when the dataset has none, because most solvers
-# expect Hips to have a parent.
 func build_skeleton(sk: Dictionary) -> Skeleton3D:
-	var skel := Skeleton3D.new()
-	skel.name = "GeneralSkeleton"
-	var bones: Array = sk["bones"]
-	var names := {}
-	for b in bones:
-		names[b["name"]] = true
-	var has_root := names.has("Root")
-	if not has_root:
-		skel.add_bone("Root")
-		skel.set_bone_rest(0, Transform3D.IDENTITY)
-	for b in bones:
-		skel.add_bone(b["name"])
-	for b in bones:
-		var idx := skel.find_bone(b["name"])
-		var parent: String = b.get("parent", "")
-		var pidx := skel.find_bone(parent) if parent != "" else (skel.find_bone("Root") if not has_root else -1)
-		skel.set_bone_parent(idx, pidx)
-		skel.set_bone_rest(idx, xform_of(b["rest_local"]))
-		humanoid_bone_ids.append(idx)
-	skel.reset_bone_poses()
-	return skel
+	var built := Rig.build_skeleton(sk)
+	humanoid_bone_ids = built[1]
+	return built[0]
 
 func tracker_xform(frame: Dictionary, role: String) -> Transform3D:
 	return xform_of(frame["trackers"][role])
@@ -361,6 +341,7 @@ class BuiltinAdapter extends IKAdapter:
 	var poles := {}
 	var roles: Array = []
 	var hips_mod: HipsModifier
+	var skeleton: Skeleton3D
 
 	func implementation_name() -> String:
 		return "builtin"
@@ -373,6 +354,7 @@ class BuiltinAdapter extends IKAdapter:
 
 	func setup(root: Node3D, skel: Skeleton3D, test: Dictionary) -> void:
 		roles = test["roles"]
+		skeleton = skel
 		for role in ["head", "waist", "chest", "left_hand", "right_hand", "left_foot", "right_foot", "left_elbow", "right_elbow", "left_knee", "right_knee"]:
 			targets[role] = _marker(root, role.capitalize().replace(" ", "") + "Target")
 			targets[role].visible = roles.has(role)
@@ -437,7 +419,9 @@ class BuiltinAdapter extends IKAdapter:
 		for role in targets.keys():
 			if harness.has_tracker(role):
 				targets[role].global_transform = harness.bone_target_xform(frame, role)
-		# Pole nodes: elbow/knee trackers when tracked, otherwise behind the elbows and in front of the knees.
+		# Pole nodes: elbow/knee trackers when tracked, otherwise behind the elbows and in front of the knees
+		# (in the avatar's frame: the skeleton may stand anywhere in the room, facing any way).
+		var facing := skeleton.global_transform.basis.orthonormalized()
 		var pole_roles := {"left_hand": "left_elbow", "right_hand": "right_elbow", "left_foot": "left_knee", "right_foot": "right_knee"}
 		for limb in poles.keys():
 			var pr: String = pole_roles[limb]
@@ -446,9 +430,9 @@ class BuiltinAdapter extends IKAdapter:
 			elif harness.has_tracker(limb):
 				var t: Vector3 = targets[limb].global_position
 				if limb.ends_with("hand"):
-					poles[limb].global_position = t + Vector3(0.0, -0.1, -0.5)
+					poles[limb].global_position = t + facing * Vector3(0.0, -0.1, -0.5)
 				else:
-					poles[limb].global_position = t + Vector3(0.0, 0.5, 0.6)
+					poles[limb].global_position = t + facing * Vector3(0.0, 0.5, 0.6)
 
 
 class HipsModifier extends SkeletonModifier3D:

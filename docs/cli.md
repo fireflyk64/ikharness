@@ -21,6 +21,10 @@ ikh service                                  start monado-service headless (fore
 ikh probe                                    read poses back through OpenXR
 ikh replay --dataset D --tracker-set 6pt [--verify] [--loop] [--calibrate]     stream into Monado
 ikh calibrate --dataset D --tracker-set 6pt  T-pose, hold 1 s, pull both triggers (through the driver)
+ikh xr --dataset D --tracker-set 6pt --ik builtin [--frames N] [--capture fbdir|import|ffmpeg] [--perturb NAME:MAG]
+                                            the whole OpenXR chain unattended: monado-service, the Godot XR
+                                            demo under Xvfb, T-pose + triggers, replay, poses read off the screen
+ikh screenshot (--fbdir DIR | --display :N) --out shot.png     grab an Xvfb framebuffer or any X display
 ikh devices | ikh pose DEV x y z [qx qy qz qw] | ikh drop DEV     poke the driver
 ```
 

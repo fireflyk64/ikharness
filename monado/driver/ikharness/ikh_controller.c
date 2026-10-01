@@ -73,7 +73,42 @@ static struct xrt_binding_output_pair index_to_simple_outputs[1] = {
     {XRT_OUTPUT_NAME_SIMPLE_VIBRATION, XRT_OUTPUT_NAME_INDEX_HAPTIC},
 };
 
-static struct xrt_binding_profile index_binding_profiles[1] = {
+// Same emulation as Monado's own Index driver (auxiliary/vive/vive_bindings.c), so that
+// applications which only suggest Touch bindings (Godot's default action map) get input.
+static struct xrt_binding_input_pair index_to_touch_inputs[19] = {
+    {XRT_INPUT_TOUCH_X_CLICK, XRT_INPUT_INDEX_A_CLICK},
+    {XRT_INPUT_TOUCH_X_TOUCH, XRT_INPUT_INDEX_A_TOUCH},
+    {XRT_INPUT_TOUCH_Y_CLICK, XRT_INPUT_INDEX_B_CLICK},
+    {XRT_INPUT_TOUCH_Y_TOUCH, XRT_INPUT_INDEX_B_TOUCH},
+    {XRT_INPUT_TOUCH_MENU_CLICK, XRT_INPUT_INDEX_SYSTEM_CLICK},
+    {XRT_INPUT_TOUCH_A_CLICK, XRT_INPUT_INDEX_A_CLICK},
+    {XRT_INPUT_TOUCH_A_TOUCH, XRT_INPUT_INDEX_A_TOUCH},
+    {XRT_INPUT_TOUCH_B_CLICK, XRT_INPUT_INDEX_B_CLICK},
+    {XRT_INPUT_TOUCH_B_TOUCH, XRT_INPUT_INDEX_B_TOUCH},
+    {XRT_INPUT_TOUCH_SYSTEM_CLICK, XRT_INPUT_INDEX_SYSTEM_CLICK},
+    {XRT_INPUT_TOUCH_SQUEEZE_VALUE, XRT_INPUT_INDEX_SQUEEZE_VALUE},
+    {XRT_INPUT_TOUCH_TRIGGER_TOUCH, XRT_INPUT_INDEX_TRIGGER_TOUCH},
+    {XRT_INPUT_TOUCH_TRIGGER_VALUE, XRT_INPUT_INDEX_TRIGGER_VALUE},
+    {XRT_INPUT_TOUCH_THUMBSTICK_CLICK, XRT_INPUT_INDEX_THUMBSTICK_CLICK},
+    {XRT_INPUT_TOUCH_THUMBSTICK_TOUCH, XRT_INPUT_INDEX_THUMBSTICK_TOUCH},
+    {XRT_INPUT_TOUCH_THUMBSTICK, XRT_INPUT_INDEX_THUMBSTICK},
+    {XRT_INPUT_TOUCH_THUMBREST_TOUCH, XRT_INPUT_INDEX_TRACKPAD_TOUCH},
+    {XRT_INPUT_TOUCH_GRIP_POSE, XRT_INPUT_INDEX_GRIP_POSE},
+    {XRT_INPUT_TOUCH_AIM_POSE, XRT_INPUT_INDEX_AIM_POSE},
+};
+
+static struct xrt_binding_output_pair index_to_touch_outputs[1] = {
+    {XRT_OUTPUT_NAME_TOUCH_HAPTIC, XRT_OUTPUT_NAME_INDEX_HAPTIC},
+};
+
+static struct xrt_binding_profile index_binding_profiles[2] = {
+    {
+        .name = XRT_DEVICE_TOUCH_CONTROLLER,
+        .inputs = index_to_touch_inputs,
+        .input_count = ARRAY_SIZE(index_to_touch_inputs),
+        .outputs = index_to_touch_outputs,
+        .output_count = ARRAY_SIZE(index_to_touch_outputs),
+    },
     {
         .name = XRT_DEVICE_SIMPLE_CONTROLLER,
         .inputs = index_to_simple_inputs,

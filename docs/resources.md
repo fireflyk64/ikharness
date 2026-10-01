@@ -39,6 +39,7 @@ load, the container ran out of memory and restarted. Rules since then:
 | `monado-service`, null compositor, idle | 75 MB | — |
 | Godot with software OpenGL (llvmpipe) under Xvfb, ShaderMotion recorder, 3 frames | 337 MB | 8 s |
 | Python-only tests | < 100 MB | 2 s |
+| `ikh xr`: Godot XR demo on Monado, llvmpipe, 256² eyes + 640×360 window, 45 frames | 372 MB (+ 85 MB service) | 35 s |
 
 None of these is large on its own; the risk is concurrency with other work. Measure a new
 step before adopting it:

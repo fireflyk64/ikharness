@@ -14,8 +14,8 @@ The task list lives in [`../TODO.md`](../TODO.md).
 | [godot-harness.md](godot-harness.md) | Running IK implementations in Godot | working (RenIK, Godot built-ins, baseline) |
 | [cli.md](cli.md) | The `ikh` driver command | working |
 | [calibration.md](calibration.md) | T-pose calibration: math, remote gesture, tests | working |
-| [godot-openxr.md](godot-openxr.md) | Godot as an OpenXR client of the Monado driver | planned |
-| [shadermotion.md](shadermotion.md) | Bone rotations as pixels: Godot port, capture, video | planned |
+| [godot-openxr.md](godot-openxr.md) | `ikh xr`: Godot OpenXR demo on Monado, calibration by triggers, poses read off the screen | working (body trackers by side channel) |
+| [shadermotion.md](shadermotion.md) | Bone rotations as pixels: codec, Godot encoder and shader, screen capture | working; video pending |
 | [unity.md](unity.md) | Unity avatar, shader, harness | blocked (no Unity) |
 | [resources.md](resources.md) | Memory guard, shared-machine rules, measured budgets | in force |
 
