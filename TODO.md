@@ -48,8 +48,11 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] Godot import retargeter in the dataset exporter (goal 1/5): `--bone-map` presets
       (`vrm`, `bvh_perfume`, `mixamo`) or JSON; Perfume and MMD datasets added to the suite
       with 0.0° rest deviation from the profile. (`docs/datasets.md`)
-- [ ] More datasets from the retargeting demo repo (Mixamo catwalk, hip-hop and No Logic David
-      dance GLBs, VRM avatars) and the other two Perfume clips; frame selection by pose diversity.
+- [x] More datasets: the other two Perfume clips, the Mixamo hip-hop dance and the No Logic David
+      krump dance (`suites/extended.json`: builtin 18.65°, RenIK 21.72°, rest 76.91°), with frame
+      selection by pose diversity (`ikh dataset build --select diversity`, `ikh dataset select`).
+      Not added: the VRM avatars of the demo repo carry no clips of their own, and the
+      "Mixamo catwalk" file there is a text mesh. (`docs/datasets.md`)
 - [x] Godot's built-in IK as a second harness adapter (`--ik builtin`: FABRIK3D spine,
       TwoBoneIK3D limbs with pole nodes, hips + end-effector modifiers). Suite (4 datasets): builtin
       16.18°, RenIK 22.10°, rest pose 69.74°. (`docs/godot-harness.md`)
@@ -82,17 +85,20 @@ test it, and how to see whether it is working (the feedback loop).
 
 ## Next
 
-- [ ] RenIK adapter: tune pole-target feeding for elbow/knee trackers (on the mocap set the
-      11-point run leaves hands 3.8 cm off, 6-point 0.4 cm); enable
-      `RenIKPlacement3D` for 3/4-point sets (needs a floor collider). (`docs/godot-harness.md`)
+- [x] RenIK adapter: pole direction from the tracked lower bone (arm offset corrected), chest
+      target without position, `RenIKPlacement3D` with a floor for 3/4-point sets. Suite
+      21.54° → 19.80°; mocap 11-point 21.87° → 13.03° with hands on target. Placement is mixed
+      (better on mocap 3pt, worse on walk), `IKH_RENIK_PLACEMENT=0` disables it.
+      (`docs/godot-harness.md`)
 - [x] Godot as OpenXR client through Monado (goal 5): head, hands and triggers through
       OpenXRInterface, body trackers through the driver's state query. (`docs/godot-openxr.md`)
 - [x] `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer (`monado/patches/0003`,
       upstream marks it ALWAYS_DISABLED): the 17 tracker roles as subaction paths, roles taken
       from device names, `xrEnumerateViveTrackerPathsHTCX`. The Godot demo now reads body
       trackers through OpenXR; the driver side channel is the fallback (`--trackers`).
-- [ ] Godot as preprocessor (goal 5): `ikh dataset export-retargeted` writes retargeted
-      animations (Godot `.res`, glTF) with the standard rest, for OpenXR/Unity consumers.
+- [x] Godot as preprocessor (goal 5): `ikh dataset export-retargeted` writes a dataset as GLB,
+      Godot scene and Animation resource on the standard skeleton; `--verify` re-imports the
+      GLB and scores 0.0000°. (`docs/datasets.md`)
 - [x] ShaderMotion reference codec in Python (goal 6, step 1): colors ↔ numbers, hips float
       scheme, frame layout, images; validated on a genuine Unity-encoded frame.
       (`docs/shadermotion.md`)
@@ -113,7 +119,7 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] GPU readout with RenIK and on the full suite: recorder normals moved onto the bone axes
       (stretched bones read up to 12.6° wrong before, 0.11° now); `ikh suite --readout
       json|shadermotion|shadermotion-gpu|xr --calibration rules|tpose`. Suite through rendered
-      pixels 20.53° builtin / 27.06° RenIK, through the OpenXR chain 20.68° / 27.06°.
+      pixels 20.53° builtin / 25.56° RenIK, through the OpenXR chain 20.64° / 25.56°.
 - [x] Replication: `scripts/setup.sh` (pinned Godot, Python lock, data repos at pinned commits,
       vendored MIT walk clips), `docs/getting-started.md`, `docs/STATUS.md`, `ikh score` and
       `ikh shadermotion encode|decode` for external tools.
@@ -134,7 +140,6 @@ test it, and how to see whether it is working (the feedback loop).
 - [ ] BVH and VMD importers in Python (only if the GLB / .tres conversions turn out
       insufficient).
 - [ ] SteamVR plugin: forward generic trackers (upstream `steamvr-monado` only does HMD + hands).
-- [ ] Frame selection by pose diversity instead of uniform sampling.
 
 ## Done
 

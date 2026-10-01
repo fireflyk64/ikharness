@@ -105,6 +105,11 @@ PRESETS = {
     "vrm": vrm_bone_map,
     "bvh_perfume": bvh_perfume_bone_map,
     "mixamo": mixamo_bone_map,
+    # Mixamo exports whose bones carry no prefix at all ("LeftArm", "LeftUpLeg", ...).
+    "mixamo_bare": lambda: mixamo_bone_map(prefix=""),
+    # Bones already carry the profile's names but the rest pose is not the profile's
+    # (bone axes differ): map every bone to itself so the importer's rest fixer runs.
+    "humanoid": lambda: {b: b for b in PROFILE_BONES},
 }
 
 
@@ -271,7 +276,8 @@ def import_retargeted(model: Path, bone_map: Dict[str, str], project_dir: Option
     from .proc import run_guarded
     res = run_guarded([godot_binary(), "--headless", "--path", str(project_dir), "--import"], timeout=1800)
     # Godot names the imported scene with a content hash, whatever the .import file said.
-    imported = list((project_dir / ".godot" / "imported").glob(f"{model.name}-*.scn"))
+    import glob as _glob
+    imported = list((project_dir / ".godot" / "imported").glob(f"{_glob.escape(model.name)}-*.scn"))  # names may hold [ ]
     if res.killed or res.returncode != 0 or not imported:
         raise RuntimeError(f"retarget import failed for {model} (killed={res.killed or 'no'}, peak {res.peak_rss_mb:.0f} MB):\n{res.log[-4000:]}")
     return project_dir

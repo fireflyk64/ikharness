@@ -32,11 +32,11 @@ the reference as rest-relative angular error per bone, reduced to one number per
 | Implementation | final | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt | perfume 6pt | perfume 11pt | mmd 6pt | mmd 11pt |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Godot built-in (TwoBoneIK3D + FABRIK3D) | **15.25** | 54.3 | 12.84 | 11.24 | 15.35 | 13.46 | 23.72 | 12.77 | 15.04 | 11.66 |
-| RenIK (V-Sekai GDScript port) | **21.54** | 42.2 | 14.26 | 12.33 | 21.36 | 21.87 | 36.62 | 24.19 | 18.75 | 18.11 |
+| RenIK (V-Sekai GDScript port) | **19.80** | 45.3 | 14.26 | 11.46 | 21.36 | 13.03 | 36.62 | 15.24 | 18.75 | 15.84 |
 | none (rest pose) | **69.74** | 6.1 | 39.25 | 39.25 | 58.26 | 58.26 | 133.08 | 133.08 | 48.37 | 48.37 |
 
-The whole suite through pixels: recorder shader in-process 20.53° (builtin) / 27.06° (RenIK),
-through OpenXR and the screen (`ikh xr`) 20.68° / 27.06°. The pixel readouts include the
+The whole suite through pixels: recorder shader in-process 20.53° (builtin) / 25.56° (RenIK),
+through OpenXR and the screen (`ikh xr`) 20.64° / 25.56°. The pixel readouts include the
 format's projection loss (Mecanim wrists have no twist axis), which is why they are higher
 than the result-file numbers above; a screen recording in H.264 changes them by 0.01°.
 
@@ -66,10 +66,8 @@ poses and on tracker inputs) degrade the score monotonically.
 
 ## Known limitations
 
-* RenIK's elbow/knee pole handling in the adapter costs precision (mocap 11pt hands 3.8 cm
-  off); 3/4-point sets leave RenIK's legs at rest (no floor placement wired).
-* The GPU ShaderMotion path is validated with the built-in IK only; RenIK's non-uniform bone
-  stretch skews skinned normals slightly.
+* RenIK's foot placement (3/4-point sets) is wired but only its crouch ratio is fitted to the
+  avatar; on walking data it scores worse than legs hanging from the hips.
 * The ShaderMotion pre/post rotation tables come from one particular avatar (1.5° residual
   on a straight profile leg); a Unity export for our own avatar would remove that.
 * The hips handedness convention for Unity-encoded frames is inferred (limbs check out on a

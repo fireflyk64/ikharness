@@ -5,6 +5,12 @@ VRChat) with the same datasets and the same scorer.
 
 **State.** Blocked: Unity is not installed on this machine. Everything below is design.
 
+**Ready on the Godot side:** `ikh dataset export-retargeted` writes any dataset as a GLB with
+the standard skeleton, a skinned body and the clip (dataset frame `i` at `i / fps` seconds),
+verified to hold the reference poses exactly; trackers reach Unity's OpenXR plugin through
+`XR_HTCX_vive_tracker_interaction` (Monado patch 0003); `ikh xr` shows how an application is
+driven, calibrated by triggers and read off the screen.
+
 ## Pieces
 
 1. **Test avatar** with rest rotations compatible with the standard skeleton: build a

@@ -9,6 +9,9 @@ Monado runtime manifest, `XDG_RUNTIME_DIR`) and calls `python -m ikharness.ikh`.
 ikh status                                   what is installed / running / built
 ikh dataset build --model M --anim A ...     export a dataset (see docs/datasets.md)
 ikh dataset info DATASET                     bones, limb lengths, ground contact
+ikh dataset select --dataset D --count N [--out D2]     keep the most different poses (farthest point sampling)
+ikh dataset export-retargeted --dataset D --out clip.glb [--scene x.tscn] [--animation x.res] [--verify]
+                                            the dataset as GLB / Godot scene / animation on the standard skeleton
 ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG] [--settle N]
          [--readout json|shadermotion|shadermotion-gpu]
                                             read solved poses from JSON, from CPU-encoded ShaderMotion

@@ -1,7 +1,7 @@
 """``ikh``: one command to drive the IK harness.
 
     ikh status
-    ikh dataset build|info ...
+    ikh dataset build|info|select|export-retargeted ...
     ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG]
     ikh suite --ik renik [--build]
     ikh negative --dataset D --ik renik
@@ -213,6 +213,12 @@ def _pass_through(argv) -> int:
     if cmd == "dataset" and len(argv) > 1 and argv[1] == "build":
         from .build_dataset import main as build_main
         return build_main(argv[2:])
+    if cmd == "dataset" and len(argv) > 1 and argv[1] == "select":
+        from .select import main as select_main
+        return select_main(argv[2:])
+    if cmd == "dataset" and len(argv) > 1 and argv[1] == "export-retargeted":
+        from .export_retargeted import main as export_main
+        return export_main(argv[2:])
     if cmd == "service":
         script = ROOT / "monado/scripts/run_service.sh"
         os.execv("/bin/bash", ["bash", str(script)] + argv[1:])
@@ -242,6 +248,8 @@ def main(argv=None) -> int:
     dsub = d.add_subparsers(dest="dataset_cmd", required=True)
     b = dsub.add_parser("build", help="export clips with Godot (see ikharness.build_dataset --help)")
     b.add_argument("rest", nargs=argparse.REMAINDER)
+    dsub.add_parser("select", help="keep the most different poses of a dataset (see ikharness.select --help)")
+    dsub.add_parser("export-retargeted", help="write a dataset as GLB / Godot scene / animation (see ikharness.export_retargeted --help)")
     i = dsub.add_parser("info", help="print skeleton, limb lengths and ground contact stats")
     i.add_argument("path")
     d.set_defaults(fn=cmd_dataset)

@@ -2,6 +2,7 @@
 
     python -m ikharness.build_dataset --model avatar.glb --anim clip.tres[:name] [--anim ...] \
         --frames 40 --hips-mode absolute|normalized|scale:f|ratio:h --out dataset.json
+        [--select diversity [--oversample 6]]
 
 Every clip is exported separately by ``godot/tools/export_poses.gd`` and the
 results are merged into one dataset (same skeleton, sources renumbered).
@@ -69,8 +70,13 @@ def main(argv=None) -> int:
                    help="retarget the model through Godot's importer: preset (vrm, bvh_perfume, mixamo) or a JSON file")
     p.add_argument("--no-fix-silhouette", action="store_true", help="retarget: keep the source rest instead of forcing a T-pose")
     p.add_argument("--keep-project", default=None, help="retarget: keep the temporary import project at this path")
+    p.add_argument("--select", default="uniform", choices=["uniform", "diversity"],
+                   help="uniform: --frames evenly spaced per clip; diversity: export --oversample times as many and keep "
+                        "the --frames x clips most different poses (see ikharness.select)")
+    p.add_argument("--oversample", type=int, default=6, help="candidate frames per kept frame for --select diversity")
     p.add_argument("--out", required=True)
     args = p.parse_args(argv)
+    per_clip = args.frames * (max(1, args.oversample) if args.select == "diversity" else 1)
 
     merged = None
     with tempfile.TemporaryDirectory() as tmp:
@@ -89,9 +95,18 @@ def main(argv=None) -> int:
             print(f"retargeted {Path(args.model).name} with bone map {args.bone_map} (project {project})", file=sys.stderr)
         for i, anim in enumerate(anims):
             out = Path(tmp) / f"clip{i}.json"
-            export_clip(model, anim, str(out), args.frames, args.hips_mode, args.start, args.end, args.keep_root, project)
+            export_clip(model, anim, str(out), per_clip, args.hips_mode, args.start, args.end, args.keep_root, project)
             ds = Dataset.load(out)
             merged = ds if merged is None else merged.merge(ds)
+    if args.select == "diversity":
+        from .select import select, subset
+        keep = args.frames * len(anims)
+        before = select(merged, keep, "uniform")
+        chosen = select(merged, keep, "diversity")
+        print(f"pose diversity: kept {len(chosen.indices)} of {len(merged.frames)} candidates; nearest-neighbour spread "
+              f"{chosen.spread_deg:.1f} deg (uniform {before.spread_deg:.1f}), worst uncovered pose {chosen.coverage_deg:.1f} deg "
+              f"(uniform {before.coverage_deg:.1f})", file=sys.stderr)
+        merged = subset(merged, chosen.indices, f"diversity: {len(chosen.indices)} of {len(merged.frames)}")
     merged.save(args.out)
     print(f"wrote {args.out}: {len(merged.frames)} frames from {len(merged.sources)} clips, "
           f"{len(merged.skeleton.order)} bones, hips height {merged.skeleton.hips_height:.3f} m")

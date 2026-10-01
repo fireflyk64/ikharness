@@ -145,8 +145,8 @@ runtime instead of Monado it runs as a three-point demo (no driver, no body trac
 
   | Run | in-process (`--readout shadermotion-gpu --calibration tpose`) | through OpenXR and the screen (`--readout xr`) |
   |---|---|---|
-  | whole suite, builtin (`ikh suite`) | 20.53° | 20.68° |
-  | whole suite, RenIK (`ikh suite`) | 27.06° | 27.06° |
+  | whole suite, builtin (`ikh suite`) | 20.53° | 20.64° |
+  | whole suite, RenIK (`ikh suite`) | 25.56° | 25.56° |
   | walk, builtin, 6pt, 45 frames (body score) | 16.89° | 16.67° |
   | mini walk, RenIK, 6pt (body score) | 18.73° | 18.73° |
 

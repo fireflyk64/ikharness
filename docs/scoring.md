@@ -53,26 +53,31 @@ improved by 3 to 4 degrees when the exporter's `rest_local` bug was fixed, see `
 | Implementation | final (deg) | quality | walk 6pt | walk 11pt | mocap 6pt | mocap 11pt | perfume 6pt | perfume 11pt | mmd 6pt | mmd 11pt |
 |---|---|---|---|---|---|---|---|---|---|---|
 | builtin (Godot TwoBoneIK3D + FABRIK3D) | **15.25** | 54.3 | 12.84 | 11.24 | 15.35 | 13.46 | 23.72 | 12.77 | 15.04 | 11.66 |
-| renik | **21.54** | 42.2 | 14.26 | 12.33 | 21.36 | 21.87 | 36.62 | 24.19 | 18.75 | 18.11 |
+| renik | **19.80** | 45.3 | 14.26 | 11.46 | 21.36 | 13.03 | 36.62 | 15.24 | 18.75 | 15.84 |
 | none (rest pose) | **69.74** | 6.1 | 39.25 | 39.25 | 58.26 | 58.26 | 133.08 | 133.08 | 48.37 | 48.37 |
 
 The same suite through the other readouts (`ikh suite --readout ...`, compare with `ikh report`):
 
 | Readout | builtin | renik |
 |---|---|---|
-| result file (the table above) | 15.25 | 21.54 |
-| pixels rendered by the recorder shader, tracker offsets given (`shadermotion-gpu`, `rules`) | 20.53 | 27.06 |
-| the same with T-pose calibration (`shadermotion-gpu`, `tpose`) | 20.53 | 27.06 |
-| whole OpenXR chain: Monado, XR demo, calibration by triggers, screen capture (`xr`) | 20.68 | 27.06 |
+| result file (the table above) | 15.25 | 19.80 |
+| pixels rendered by the recorder shader, tracker offsets given (`shadermotion-gpu`, `rules`) | 20.53 | 25.56 |
+| the same with T-pose calibration (`shadermotion-gpu`, `tpose`) | 20.53 | 25.56 |
+| whole OpenXR chain: Monado, XR demo, calibration by triggers, screen capture (`xr`) | 20.64 | 25.56 |
 
 The pixel readouts sit about 5° above the result file because ShaderMotion stores Mecanim
 muscles (a wrist has no twist axis, for instance), and the reference is passed through the
 same format; what matters is that the three pixel rows agree: the transport adds nothing.
 
 Numbers are weighted degrees. The rest-pose baseline scores 133° on the Perfume dance
-because the dancer turns away from the rest facing. Known oddity: on the mocap set RenIK's
-11-point run leaves the hands 3.8 cm off target (0.4 cm with 6 points), so its elbow pole
-feeding costs precision; see `docs/godot-harness.md`.
+because the dancer turns away from the rest facing. RenIK's 11-point columns dropped by 1 to
+9 degrees on 2026-09-30 when the adapter's pole direction and chest handling were fixed
+(`docs/godot-harness.md`); with elbow, knee and chest trackers it now matches the built-in
+solver, with 6 points it trails on the dances.
+
+`suites/extended.json` adds four clips (the other two Perfume dancers, a Mixamo hip-hop
+dance, a 3.4 minute krump dance), frames chosen by pose diversity: builtin **18.65°**,
+RenIK **21.72°**, rest pose **76.91°** (`ikh suite --suite suites/extended.json --ik ... --build`).
 
 ## Negative tests (`ikh negative`)
 

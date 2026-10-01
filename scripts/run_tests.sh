@@ -12,8 +12,8 @@ rc=0
 headroom() { "$PY" -c "from ikharness.proc import container_free_mb as f; v=f(); print('   container free: ' + ('unlimited' if v is None else f'{v:.0f} MB'))"; }
 for part in "${parts[@]}"; do
     case "$part" in
-        python)   files="tests/test_dataset_pipeline.py tests/test_protocol.py tests/test_negative.py tests/test_proc.py tests/test_shadermotion_codec.py tests/test_shadermotion_pose.py tests/test_cli.py tests/test_calibration.py tests/test_screen.py tests/test_video.py" ;;
-        godot)    files="tests/test_godot_harness.py" ;;
+        python)   files="tests/test_dataset_pipeline.py tests/test_protocol.py tests/test_negative.py tests/test_proc.py tests/test_shadermotion_codec.py tests/test_shadermotion_pose.py tests/test_cli.py tests/test_calibration.py tests/test_screen.py tests/test_video.py tests/test_report.py tests/test_select.py" ;;
+        godot)    files="tests/test_godot_harness.py tests/test_export_retargeted.py" ;;
         gpu)      files="tests/test_godot_gpu.py" ;;
         retarget) files="tests/test_retarget.py" ;;
         monado)   files="tests/test_monado_driver.py" ;;

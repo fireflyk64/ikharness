@@ -1,0 +1,44 @@
+{
+  "name": "extended",
+  "description": "The default suite plus the other two Perfume dancers, a Mixamo hip-hop dance and a 3.4 minute krump dance; frames chosen by pose diversity from 6x oversampling. 6 and 11 point tracking.",
+  "settle": 8,
+  "models": {
+    "vsekai_humanoid_08": "${IKH_DATA_DIR}/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"
+  },
+  "datasets": {
+    "vsk_walk": {"path": "out/datasets/vsk_walk.json", "build": {"model": "vsekai_humanoid_08",
+      "anims": ["data/vsk_animations/Anim_Idle.tres", "data/vsk_animations/Anim_Walk_Forward.tres", "data/vsk_animations/Anim_Walk_Left.tres"],
+      "frames": 15, "hips_mode": "ratio:0.995"}},
+    "mocap08": {"path": "out/datasets/mocap08.json", "build": {"model": "vsekai_humanoid_08",
+      "anims": ["${IKH_DATA_DIR}/ANIM_test_assets/vrm_1_vsekai_godot_engine_humanoid_08.glb"], "frames": 40, "hips_mode": "ratio:0.97"}},
+    "perfume_aachan": {"path": "out/datasets/perfume_aachan.json", "build": {"model": "${IKH_DATA_DIR}/ANIM_perfume/ANIM_aachan.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_perfume/ANIM_aachan.glb"], "bone_map": "bvh_perfume", "frames": 30, "hips_mode": "absolute"}},
+    "mmd_melt": {"path": "out/datasets/mmd_melt.json", "build": {"model": "${IKH_DATA_DIR}/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_mmd_vrm_sample/Pronama_motion/2940309982489667532_melt.glb:MMD Animation melt"],
+      "bone_map": "vrm", "frames": 40, "hips_mode": "absolute"}},
+    "perfume_kashiyuka": {"path": "out/datasets/perfume_kashiyuka.json", "build": {"model": "${IKH_DATA_DIR}/ANIM_perfume/ANIM_kashiyuka.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_perfume/ANIM_kashiyuka.glb"], "bone_map": "bvh_perfume", "frames": 30, "hips_mode": "absolute",
+      "select": "diversity", "oversample": 6}},
+    "perfume_nocchi": {"path": "out/datasets/perfume_nocchi.json", "build": {"model": "${IKH_DATA_DIR}/ANIM_perfume/ANIM_nocchi.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_perfume/ANIM_nocchi.glb"], "bone_map": "bvh_perfume", "frames": 30, "hips_mode": "absolute",
+      "select": "diversity", "oversample": 6}},
+    "hiphop": {"path": "out/datasets/hiphop.json", "build": {
+      "model": "${IKH_DATA_DIR}/ANIM_female_doll_retargeting/animation_retargeting_demo/art/ANIM_hip_hop/wave_hip_hop_dance1.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_female_doll_retargeting/animation_retargeting_demo/art/ANIM_hip_hop/wave_hip_hop_dance1.glb"],
+      "bone_map": "mixamo_bare", "frames": 30, "hips_mode": "absolute", "select": "diversity", "oversample": 6}},
+    "krump": {"path": "out/datasets/krump.json", "build": {
+      "model": "${IKH_DATA_DIR}/ANIM_female_doll_retargeting/animation_retargeting_demo/art/ANIM_No_Logic_David_Banyan_Dance/[No Logic David] Banyan Dance - PartyWave (krump)-VNfYmEU4IvM.glb",
+      "anims": ["${IKH_DATA_DIR}/ANIM_female_doll_retargeting/animation_retargeting_demo/art/ANIM_No_Logic_David_Banyan_Dance/[No Logic David] Banyan Dance - PartyWave (krump)-VNfYmEU4IvM.glb"],
+      "bone_map": "humanoid", "frames": 40, "hips_mode": "ratio:0.9", "select": "diversity", "oversample": 6}}
+  },
+  "entries": [
+    {"dataset": "vsk_walk", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "vsk_walk", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "mocap08", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "mocap08", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "perfume_aachan", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "perfume_aachan", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "mmd_melt", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "mmd_melt", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "perfume_kashiyuka", "tracker_set": "6pt", "weight": 1.0}, {"dataset": "perfume_kashiyuka", "tracker_set": "11pt", "weight": 0.5},
+    {"dataset": "perfume_nocchi", "tracker_set": "6pt", "weight": 1.0}, {"dataset": "perfume_nocchi", "tracker_set": "11pt", "weight": 0.5},
+    {"dataset": "hiphop", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "hiphop", "tracker_set": "11pt", "weight": 1.0},
+    {"dataset": "krump", "tracker_set": "6pt", "weight": 2.0}, {"dataset": "krump", "tracker_set": "11pt", "weight": 1.0}
+  ]
+}

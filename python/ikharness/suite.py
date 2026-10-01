@@ -104,6 +104,8 @@ def ensure_dataset(suite: dict, name: str, build: bool) -> Path:
         cmd += ["--anim", str(expand(base)) + (f":{clip}" if clip else "")]
     if recipe.get("bone_map"):
         cmd += ["--bone-map", recipe["bone_map"]]
+    if recipe.get("select"):
+        cmd += ["--select", recipe["select"], "--oversample", str(recipe.get("oversample", 6))]
     path.parent.mkdir(parents=True, exist_ok=True)
     print(f"building dataset {name} ...", file=sys.stderr)
     res = subprocess.run(cmd, capture_output=True, text=True)

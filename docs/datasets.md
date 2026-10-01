@@ -26,6 +26,40 @@ rewrites the clip tracks. Four datasets feed the default suite.
   source clip id and time.
 * `sources[]`: clip path, clip name, length, hips scaling used.
 
+## Choosing frames by pose diversity
+
+Uniform time steps return the same few poses of a walk cycle over and over, and a long idle
+stretch crowds out the hard moments of a dance. `--select diversity` exports `--oversample`
+times as many candidates and keeps the most different ones: farthest point sampling,
+starting from the most ordinary pose, where the distance between two poses is the mean
+angle between corresponding body bones after removing each pose's heading and position.
+
+```sh
+ikh dataset build --model M --anim A --frames 30 --select diversity --oversample 6 --out D.json
+ikh dataset select --dataset big.json --count 40 --out small.json     # the same on an existing dataset
+#   uniform   15 of 40 frames: nearest-neighbour spread 39.3 deg, worst uncovered pose 45.6 deg away
+# * diversity 15 of 40 frames: nearest-neighbour spread 46.8 deg, worst uncovered pose 33.6 deg away
+```
+
+Suite recipes take `"select": "diversity", "oversample": 6`. The default suite keeps
+uniform sampling so its numbers stay comparable; `suites/extended.json` uses diversity for
+its four additional clips.
+
+## Godot as preprocessor: export for other engines
+
+```sh
+ikh dataset export-retargeted --dataset D.json --out clip.glb [--fps 2] [--scene clip.tscn] [--animation clip.res] [--verify]
+# verify: re-imported 45 frames, body score 0.0000 deg, worst bone RightFoot 0.0000 deg, end effectors 0.00 mm
+```
+
+writes the dataset as a binary glTF (and optionally a Godot scene and Animation resource):
+the standard humanoid skeleton (profile bone names, T-pose rest, the dataset's proportions),
+a simple skinned body, and one clip `ikharness` with dataset frame `i` at `i / fps` seconds.
+Whatever rig the clip came from was retargeted when the dataset was built, so this file is
+safe to hand to Unity (glTFast or UnityGLTF, then a Humanoid avatar: the bone names are
+Unity's), to an application's own replay, or to another Godot project. `--verify` imports the
+GLB again through the dataset exporter and scores it against the dataset.
+
 ## Run
 
 ```sh
@@ -62,6 +96,11 @@ ikh dataset build --model ANIM_aachan.glb --anim ANIM_aachan.glb --bone-map bvh_
 ikh dataset build --model melt.glb --anim "melt.glb:MMD Animation melt" --bone-map vrm --frames 40 --out out/datasets/mmd_melt.json
 ikh dataset info out/datasets/mmd_melt.json     # prints "rest vs humanoid profile: max 0.00 deg"
 ```
+
+Presets: `vrm` (`J_Bip_*`), `bvh_perfume`, `mixamo` (`mixamorig_` prefix), `mixamo_bare`
+(Mixamo names without prefix), `humanoid` (bones already carry the profile's names but the
+rest pose does not match it: every bone maps to itself so the rest fixer runs; the krump
+clip needed this, `ikh dataset info` showed "rest vs humanoid profile: max 180°").
 
 Adding a rig: write `{"Hips": "<source bone>", "LeftUpperArm": "...", ...}` as JSON (profile
 bone names as keys, see `retarget.PROFILE_BONES`) or add a preset function in
