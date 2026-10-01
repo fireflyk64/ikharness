@@ -10,7 +10,7 @@ import os
 
 import pytest
 
-from ikharness.protocol import IkhClient, Pose, PoseFlags, DeviceKind, wait_for_driver
+from ikharness.protocol import Buttons, IkhClient, Inputs, Pose, PoseFlags, DeviceKind, wait_for_driver
 
 xr = pytest.importorskip("xr")
 
@@ -93,6 +93,16 @@ def test_poses_round_trip_through_openxr(client):
         ipd = math.dist((l.x, l.y, l.z), (r.x, r.y, r.z))
         assert abs(ipd - 0.063) < 1e-3, ipd
 
+        # Projection: the configured symmetric field of view, and square pixels (no squish):
+        # the image aspect in tangent space must equal the recommended image aspect.
+        w, h = s.recommended_view_size()
+        for left, right, up, down in s.view_fovs(t):
+            assert abs(math.degrees(right - left) - 100.0) < 0.5, math.degrees(right - left)
+            assert abs(left + right) < 1e-4 and abs(up + down) < 1e-4
+            tan_aspect = (math.tan(right) - math.tan(left)) / (math.tan(up) - math.tan(down))
+            assert abs(tan_aspect - w / h) < 0.01 * (w / h), (tan_aspect, w, h)
+        assert abs(w / h - 1.0) < 0.01, (w, h)
+
         # Controllers through grip pose actions.
         profile = s.current_interaction_profile("left")
         assert profile.endswith("index_controller"), profile
@@ -137,3 +147,35 @@ def test_poses_round_trip_through_openxr(client):
 
     # Restore a sane resting pose for anything that runs after us.
     client.send_frame({"hmd": Pose((0, 1.6, 0)), "waist": Pose((0, 0.95, 0))}, frame_id=104)
+
+
+def test_triggers_reach_openxr(client):
+    """Controller inputs sent over the wire show up as OpenXR action state (T-pose calibration needs this)."""
+    client.send_inputs({"left_hand": Inputs(), "right_hand": Inputs()})
+    with HeadlessSession() as s:
+        s.sync_actions()
+        assert s.trigger("left") < 0.01 and s.trigger("right") < 0.01
+        client.send_inputs({"left_hand": Inputs(trigger=1.0)})
+        s.sync_actions()
+        assert s.trigger("left") > 0.99 and s.trigger("right") < 0.01
+        client.send_inputs({"left_hand": Inputs(trigger=0.4), "right_hand": Inputs(trigger=1.0, buttons=Buttons.A_CLICK)})
+        s.sync_actions()
+        assert abs(s.trigger("left") - 0.4) < 0.01 and s.trigger("right") > 0.99
+        client.send_inputs({"left_hand": Inputs(), "right_hand": Inputs()})
+        s.sync_actions()
+        assert s.trigger("left") < 0.01 and s.trigger("right") < 0.01
+
+
+def test_second_client_reads_state(client):
+    """A feeder and a reader can be connected at once; the reader sees what the feeder sent."""
+    sent = {"hmd": Pose((0.2, 1.5, 0.3), quat_axis_angle((0, 1, 0), 45)), "waist": Pose((0.1, 0.9, 0.2))}
+    client.send_frame(sent, frame_id=555)
+    with IkhClient(port=IKH_PORT) as reader:
+        frame_id, state = reader.get_state()
+        assert frame_id == 555
+        for name, pose in sent.items():
+            assert all(abs(a - b) < 1e-6 for a, b in zip(state[name].position, pose.position)), name
+            assert abs(abs(sum(a * b for a, b in zip(state[name].orientation, pose.orientation))) - 1.0) < 1e-6
+        assert set(state) == set(client.device_names)
+        # Both stay usable.
+        assert client.ping().frame_id == 555 and reader.ping().frame_id == 555

@@ -1,0 +1,23 @@
+diff --git a/src/xrt/compositor/null/null_compositor.c b/src/xrt/compositor/null/null_compositor.c
+index 3077996..e7b4344 100644
+--- a/src/xrt/compositor/null/null_compositor.c
++++ b/src/xrt/compositor/null/null_compositor.c
+@@ -312,8 +312,16 @@ compositor_init_sys_info(struct null_compositor *c, struct xrt_device *xdev)
+ 	(void)sys_info->client_d3d_deviceLUID_valid;
+ 	// clang-format off
+ 	for (uint32_t i = 0; i < view_count; ++i) {
+-		c->view_configs[0].views[i].recommended.width_pixels  = RECOMMENDED_VIEW_WIDTH;
+-		c->view_configs[0].views[i].recommended.height_pixels = RECOMMENDED_VIEW_HEIGHT;
++		// ikharness: recommend the HMD's own per-view size so the image aspect matches its
++		// field of view; the fixed 320x240 default squishes every non 4:3 headset.
++		uint32_t view_w = xdev->hmd->views[i].display.w_pixels;
++		uint32_t view_h = xdev->hmd->views[i].display.h_pixels;
++		if (view_w == 0 || view_h == 0) {
++			view_w = (uint32_t)RECOMMENDED_VIEW_WIDTH;
++			view_h = (uint32_t)RECOMMENDED_VIEW_HEIGHT;
++		}
++		c->view_configs[0].views[i].recommended.width_pixels  = view_w;
++		c->view_configs[0].views[i].recommended.height_pixels = view_h;
+ 		c->view_configs[0].views[i].recommended.sample_count  = 1;
+ 		c->view_configs[0].views[i].max.width_pixels  = MAX_VIEW_WIDTH;
+ 		c->view_configs[0].views[i].max.height_pixels = MAX_VIEW_HEIGHT;

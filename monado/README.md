@@ -25,6 +25,7 @@ it was given, so an IK evaluation is deterministic and repeatable.
 | `driver/ikharness/ikh_tracker.c` | Generic tracker presented as a Vive Tracker Gen3 |
 | `target/target_builder_ikharness.c` | Monado "builder" that assembles the system from the config |
 | `patches/0001-register-ikharness-driver.patch` | The six small CMake / list edits that register the driver in the Monado tree |
+| `patches/0002-null-compositor-recommended-view-size.patch` | Null compositor recommends the HMD's per-eye size instead of 320 × 240 |
 | `config/ikharness.json` | Default device set: HMD, Index controllers, 8 trackers |
 | `scripts/setup_monado.sh` | Clone Monado at the pinned commit (`MONADO_COMMIT`), link the driver in, apply the patch, build, install |
 | `scripts/run_service.sh` | Start `monado-service` headless with the driver |
@@ -59,6 +60,12 @@ Vulkan ICD (lavapipe is fine). Applications still get swapchains and can
 render, the frames are simply discarded. Set `IKH_COMPOSITOR=main` to use the
 real compositor when a display is available.
 
+Upstream's null compositor recommends a fixed 320 × 240 image per eye whatever the
+headset, which made every application render a squished, zoomed-in picture.
+`patches/0002-null-compositor-recommended-view-size.patch` makes it recommend the HMD's
+own per-eye size; `tests/test_monado_driver.py` asserts the image aspect equals the
+field-of-view aspect.
+
 ### Environment variables
 
 | Variable | Default | Meaning |
@@ -77,11 +84,17 @@ real compositor when a display is available.
   "version": 1,
   "port": 4343,
   "bind": "127.0.0.1",
-  "hmd": { "width": 1280, "height": 720, "view_count": 2, "fov_deg": 90.0, "ipd_m": 0.063, "refresh_hz": 90.0 },
+  "hmd": { "eye_width": 1024, "eye_height": 1024, "view_count": 2, "fov_h_deg": 100.0, "ipd_m": 0.063, "refresh_hz": 90.0 },
   "controllers": "index",
   "trackers": ["waist", "chest", "left_foot", "right_foot", "left_knee", "right_knee", "left_elbow", "right_elbow"]
 }
 ```
+
+The HMD is described per eye: `eye_width` × `eye_height` pixels and a symmetric horizontal
+field of view `fov_h_deg`. The vertical field of view is derived so that pixels are square
+(`tan(v/2)/tan(h/2) = height/width`) unless `fov_v_deg` is given. The legacy keys `width`
+(whole side-by-side panel), `height` and `fov_deg` still work. Use small eyes (for example
+256 × 256) for automated software-rendered runs.
 
 `controllers` is `index`, `simple` or `none`. Tracker roles are free-form
 strings; they become the device name `IK Harness Tracker (<role>)` and serial
@@ -100,6 +113,11 @@ See `driver/ikharness/ikh_protocol.h` for the exact layout. In short:
 * The client sends `FRAME`: `{frame_id, timestamp_ns (0 = now), pose_count}` + `pose_count × {index, flags, pos[3], quat[4] (x,y,z,w), linvel[3], angvel[3]}`.
   Devices not listed keep their previous pose.
 * The server answers every `FRAME` with `ACK {frame_id, applied_at_ns}`; `PING` gets `PONG` with the same payload; `QUERY` re-sends `HELLO`.
+* `INPUT`: `{count}` + `count × {index, buttons, trigger, squeeze, thumbstick[2], trackpad[2], trackpad_force}` sets controller
+  buttons and axes until replaced (answered with `ACK`). A trigger value ≥ 0.75 also counts as a click, so sending
+  `trigger = 1.0` on both hands is the "push both triggers" gesture used for T-pose calibration.
+* `GET_STATE` returns `STATE`: the `FRAME` layout with every device's current pose. Up to 8 clients may be connected
+  at once, typically one feeder plus readers (a demo application reading tracker poses, a monitor).
 * Pose flags: `ORIENTATION_VALID=1`, `POSITION_VALID=2`, `TRACKED=4`, `LINEAR_VELOCITY_VALID=8`, `ANGULAR_VELOCITY_VALID=16`, `CONNECTED=32`.
   Clearing `CONNECTED` makes the device's inputs inactive, clearing the valid bits makes the space location invalid: use this to simulate a tracker dropping out.
 * Coordinates: OpenXR convention (right handed, +Y up, -Z forward, meters) in STAGE space (floor origin). Godot uses the same convention; Unity needs a handedness flip.

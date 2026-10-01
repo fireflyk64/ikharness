@@ -3,10 +3,10 @@
   "port": 4343,
   "bind": "127.0.0.1",
   "hmd": {
-    "width": 1280,
-    "height": 720,
+    "eye_width": 1024,
+    "eye_height": 1024,
     "view_count": 2,
-    "fov_deg": 90.0,
+    "fov_h_deg": 100.0,
     "ipd_m": 0.063,
     "refresh_hz": 90.0
   },

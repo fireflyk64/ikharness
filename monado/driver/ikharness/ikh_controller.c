@@ -120,10 +120,43 @@ ikh_controller_update_inputs(struct xrt_device *xdev)
 	bool connected = ikh_hub_is_connected(c->hub, c->index);
 	int64_t now = os_monotonic_get_ns();
 
+	struct ikh_input_state in;
+	ikh_hub_get_inputs(c->hub, c->index, &in);
+	const bool trigger_click = (in.buttons & IKH_BUTTON_TRIGGER_CLICK) != 0 || in.trigger >= 0.75f;
+	const bool trigger_touch = (in.buttons & IKH_BUTTON_TRIGGER_TOUCH) != 0 || in.trigger > 0.05f;
+
 	for (uint32_t i = 0; i < xdev->input_count; i++) {
-		xdev->inputs[i].active = connected;
-		xdev->inputs[i].timestamp = now;
-		U_ZERO(&xdev->inputs[i].value);
+		struct xrt_input *inp = &xdev->inputs[i];
+		inp->active = connected;
+		inp->timestamp = now;
+		U_ZERO(&inp->value);
+		if (!connected) {
+			continue;
+		}
+		switch (inp->name) {
+		case XRT_INPUT_INDEX_TRIGGER_VALUE: inp->value.vec1.x = in.trigger; break;
+		case XRT_INPUT_INDEX_TRIGGER_CLICK: inp->value.boolean = trigger_click; break;
+		case XRT_INPUT_INDEX_TRIGGER_TOUCH: inp->value.boolean = trigger_touch; break;
+		case XRT_INPUT_INDEX_SQUEEZE_VALUE: inp->value.vec1.x = in.squeeze; break;
+		case XRT_INPUT_INDEX_SQUEEZE_FORCE: inp->value.vec1.x = in.squeeze > 0.9f ? (in.squeeze - 0.9f) * 10.0f : 0.0f; break;
+		case XRT_INPUT_INDEX_A_CLICK: inp->value.boolean = (in.buttons & IKH_BUTTON_A_CLICK) != 0; break;
+		case XRT_INPUT_INDEX_A_TOUCH: inp->value.boolean = (in.buttons & (IKH_BUTTON_A_TOUCH | IKH_BUTTON_A_CLICK)) != 0; break;
+		case XRT_INPUT_INDEX_B_CLICK: inp->value.boolean = (in.buttons & IKH_BUTTON_B_CLICK) != 0; break;
+		case XRT_INPUT_INDEX_B_TOUCH: inp->value.boolean = (in.buttons & (IKH_BUTTON_B_TOUCH | IKH_BUTTON_B_CLICK)) != 0; break;
+		case XRT_INPUT_INDEX_SYSTEM_CLICK: inp->value.boolean = (in.buttons & IKH_BUTTON_SYSTEM_CLICK) != 0; break;
+		case XRT_INPUT_INDEX_SYSTEM_TOUCH: inp->value.boolean = (in.buttons & (IKH_BUTTON_SYSTEM_TOUCH | IKH_BUTTON_SYSTEM_CLICK)) != 0; break;
+		case XRT_INPUT_INDEX_THUMBSTICK: inp->value.vec2 = in.thumbstick; break;
+		case XRT_INPUT_INDEX_THUMBSTICK_CLICK: inp->value.boolean = (in.buttons & IKH_BUTTON_THUMBSTICK_CLICK) != 0; break;
+		case XRT_INPUT_INDEX_THUMBSTICK_TOUCH:
+			inp->value.boolean = (in.buttons & (IKH_BUTTON_THUMBSTICK_TOUCH | IKH_BUTTON_THUMBSTICK_CLICK)) != 0;
+			break;
+		case XRT_INPUT_INDEX_TRACKPAD: inp->value.vec2 = in.trackpad; break;
+		case XRT_INPUT_INDEX_TRACKPAD_FORCE: inp->value.vec1.x = in.trackpad_force; break;
+		case XRT_INPUT_INDEX_TRACKPAD_TOUCH: inp->value.boolean = (in.buttons & IKH_BUTTON_TRACKPAD_TOUCH) != 0; break;
+		case XRT_INPUT_SIMPLE_SELECT_CLICK: inp->value.boolean = trigger_click; break;
+		case XRT_INPUT_SIMPLE_MENU_CLICK: inp->value.boolean = (in.buttons & IKH_BUTTON_B_CLICK) != 0; break;
+		default: break; // poses carry no value
+		}
 	}
 
 	return XRT_SUCCESS;

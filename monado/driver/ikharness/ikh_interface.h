@@ -57,9 +57,10 @@ struct ikh_config
 
 	struct
 	{
-		uint32_t w_pixels;
-		uint32_t h_pixels;
-		float fov_deg;
+		uint32_t eye_w_pixels; //!< per eye
+		uint32_t eye_h_pixels; //!< per eye
+		float fov_h_deg;       //!< horizontal field of view per eye, symmetric
+		float fov_v_deg;       //!< vertical; 0 = derive from the pixel aspect so pixels are square
 		float ipd_m;
 		uint32_t view_count;
 		float refresh_hz;

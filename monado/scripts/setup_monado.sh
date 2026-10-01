@@ -39,6 +39,11 @@ if ! grep -q XRT_BUILD_DRIVER_IKHARNESS "$MONADO_SRC/CMakeLists.txt"; then
     git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0001-register-ikharness-driver.patch"
 fi
 
+if ! grep -q "ikharness: recommend the HMD" "$MONADO_SRC/src/xrt/compositor/null/null_compositor.c"; then
+    echo "== Applying null compositor view size patch"
+    git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0002-null-compositor-recommended-view-size.patch"
+fi
+
 [ "$BUILD" = 1 ] || exit 0
 
 echo "== Configuring"

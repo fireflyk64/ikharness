@@ -98,23 +98,37 @@ ikh_hmd_create(struct ikh_hub *hub, uint32_t index)
 	uint32_t view_count = cfg->hmd.view_count == 1 ? 1 : 2;
 	hmd->base.hmd->view_count = view_count;
 
-	// Physical panel size only matters for the distortion-less mesh, keep a plausible 16:9-ish panel.
-	struct u_device_simple_info info;
-	info.display.w_pixels = cfg->hmd.w_pixels;
-	info.display.h_pixels = cfg->hmd.h_pixels;
-	info.display.w_meters = 0.13f;
-	info.display.h_meters = 0.07f;
-	info.lens_horizontal_separation_meters = cfg->hmd.ipd_m;
-	info.lens_vertical_position_meters = 0.07f / 2.0f;
+	/*
+	 * The eyes are described directly: a per-eye pixel size and a symmetric field of view.
+	 * The helper lays out a side-by-side panel (viewports, blend mode); its lens-geometry
+	 * derived fov is then replaced, with the vertical fov chosen so that pixels are square
+	 * (tan(v/2) / tan(h/2) == height / width). A portrait 640x720 eye with 90 degrees, which
+	 * this driver used to report, looks stretched and zoomed in in every mirror view.
+	 */
+	const float eye_w = (float)cfg->hmd.eye_w_pixels;
+	const float eye_h = (float)cfg->hmd.eye_h_pixels;
+	const float fov_h = cfg->hmd.fov_h_deg * (float)(M_PI / 180.0);
+	float fov_v = cfg->hmd.fov_v_deg * (float)(M_PI / 180.0);
+	if (cfg->hmd.fov_v_deg <= 0.0f) {
+		fov_v = 2.0f * atanf(tanf(fov_h / 2.0f) * eye_h / eye_w);
+	}
 
-	const float fov_rad = cfg->hmd.fov_deg * (float)(M_PI / 180.0);
+	// Physical panel size only feeds the distortion-less mesh: a panel at unit distance.
+	struct u_device_simple_info info;
+	info.display.w_pixels = cfg->hmd.eye_w_pixels * view_count;
+	info.display.h_pixels = cfg->hmd.eye_h_pixels;
+	info.display.w_meters = 2.0f * tanf(fov_h / 2.0f) * 0.05f * (float)view_count;
+	info.display.h_meters = 2.0f * tanf(fov_v / 2.0f) * 0.05f;
+	info.lens_horizontal_separation_meters = info.display.w_meters / (float)view_count;
+	info.lens_vertical_position_meters = info.display.h_meters / 2.0f;
+
 	bool ret;
 	if (view_count == 1) {
-		info.fov[0] = fov_rad;
+		info.fov[0] = fov_h;
 		ret = u_device_setup_one_eye(&hmd->base, &info);
 	} else {
-		info.fov[0] = fov_rad;
-		info.fov[1] = fov_rad;
+		info.fov[0] = fov_h;
+		info.fov[1] = fov_h;
 		ret = u_device_setup_split_side_by_side(&hmd->base, &info);
 	}
 	if (!ret) {
@@ -122,6 +136,14 @@ ikh_hmd_create(struct ikh_hub *hub, uint32_t index)
 		ikh_hmd_destroy(&hmd->base);
 		return NULL;
 	}
+	for (uint32_t i = 0; i < view_count; i++) {
+		hmd->base.hmd->distortion.fov[i].angle_left = -fov_h / 2.0f;
+		hmd->base.hmd->distortion.fov[i].angle_right = fov_h / 2.0f;
+		hmd->base.hmd->distortion.fov[i].angle_up = fov_v / 2.0f;
+		hmd->base.hmd->distortion.fov[i].angle_down = -fov_v / 2.0f;
+	}
+	IKH_INFO(hub, "HMD: %u view(s) of %ux%u px, fov %.1f x %.1f deg, ipd %.3f m", view_count, cfg->hmd.eye_w_pixels,
+	         cfg->hmd.eye_h_pixels, fov_h * 180.0 / M_PI, fov_v * 180.0 / M_PI, cfg->hmd.ipd_m);
 
 	if (cfg->hmd.refresh_hz > 0.0f) {
 		hmd->base.hmd->screens[0].nominal_frame_interval_ns =

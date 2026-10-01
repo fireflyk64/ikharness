@@ -5,7 +5,7 @@ import struct
 import threading
 
 from ikharness import protocol as P
-from ikharness.protocol import DeviceKind, IkhClient, Pose, PoseFlags
+from ikharness.protocol import Buttons, DeviceKind, IkhClient, Inputs, Pose, PoseFlags
 
 
 def test_struct_sizes_match_c_header():
@@ -67,6 +67,13 @@ class FakeDriver(threading.Thread):
                     self._send(conn, P.MsgType.PONG, P._ACK.pack(last, 42))
                 elif mtype == P.MsgType.QUERY:
                     self._hello(conn)
+                elif mtype == P.MsgType.INPUT:
+                    count, _ = P._INPUT_HEADER.unpack_from(payload, 0)
+                    self.inputs = [P._INPUT.unpack_from(payload, P._INPUT_HEADER.size + i * P._INPUT.size) for i in range(count)]
+                    self._send(conn, P.MsgType.ACK, P._ACK.pack(last, 43))
+                elif mtype == P.MsgType.GET_STATE:
+                    body = P._FRAME.pack(last, 0, 1, 0) + P._POSE.pack(3, int(PoseFlags.DEFAULT), 1, 2, 3, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0)
+                    self._send(conn, P.MsgType.STATE, body)
 
 
 def test_client_round_trip():
@@ -85,7 +92,13 @@ def test_client_round_trip():
         assert ack.frame_id == 9 and ack.applied_at_ns == 123456789
         assert c.ping().frame_id == 9
         assert [d.serial for d in c.query()] == ["IKH-HMD", "IKH-CTRL-L", "IKH-CTRL-R", "IKH-TRK-waist"]
+        c.send_inputs({"left_hand": Inputs(trigger=1.0), "right_hand": Inputs(trigger=0.5, buttons=Buttons.A_CLICK, thumbstick=(0.25, -0.5))})
+        frame_id, state = c.get_state()
+        assert frame_id == 9 and state["waist"].position == (1.0, 2.0, 3.0)
 
+    assert P._INPUT.size == 40 and P._INPUT_HEADER.size == 8
+    assert server.inputs[0][0] == 1 and server.inputs[0][2] == 1.0
+    assert server.inputs[1][0] == 2 and server.inputs[1][1] == int(Buttons.A_CLICK) and server.inputs[1][4:6] == (0.25, -0.5)
     frame_id, ts, poses = server.frames[0]
     assert (frame_id, ts) == (9, 77)
     assert poses[0][0] == 0 and poses[0][2:5] == (1.0, 2.0, 3.0)

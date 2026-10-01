@@ -13,18 +13,22 @@ Subpackages / modules:
 
 from .protocol import (  # noqa: F401
     DEFAULT_PORT,
+    Buttons,
     DeviceDesc,
     DeviceKind,
     IkhClient,
+    Inputs,
     Pose,
     PoseFlags,
 )
 
 __all__ = [
+    "Buttons",
     "DEFAULT_PORT",
     "DeviceDesc",
     "DeviceKind",
     "IkhClient",
+    "Inputs",
     "Pose",
     "PoseFlags",
 ]

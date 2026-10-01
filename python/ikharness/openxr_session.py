@@ -72,6 +72,7 @@ class HeadlessSession:
         self.view: Optional[xr.Space] = None
         self.action_set = None
         self.grip_action = None
+        self.trigger_action = None
         self.hand_paths: Dict[str, xr.Path] = {}
         self.grip_spaces: Dict[str, xr.Space] = {}
         self._active_sets = None
@@ -192,16 +193,30 @@ class HeadlessSession:
                 subaction_paths=subaction_paths,
             ),
         )
+        self.trigger_action = xr.create_action(
+            self.action_set,
+            xr.ActionCreateInfo(
+                action_type=xr.ActionType.FLOAT_INPUT,
+                action_name="trigger",
+                localized_action_name="Trigger",
+                count_subaction_paths=2,
+                subaction_paths=subaction_paths,
+            ),
+        )
         for profile in self.hand_profiles:
-            bindings = (xr.ActionSuggestedBinding * 2)(
+            # Index has an analog trigger, the simple controller only a select click.
+            trigger_path = "input/select/click" if profile.endswith("simple_controller") else "input/trigger/value"
+            bindings = (xr.ActionSuggestedBinding * 4)(
                 xr.ActionSuggestedBinding(action=self.grip_action, binding=xr.string_to_path(self.instance, "/user/hand/left/input/grip/pose")),
                 xr.ActionSuggestedBinding(action=self.grip_action, binding=xr.string_to_path(self.instance, "/user/hand/right/input/grip/pose")),
+                xr.ActionSuggestedBinding(action=self.trigger_action, binding=xr.string_to_path(self.instance, f"/user/hand/left/{trigger_path}")),
+                xr.ActionSuggestedBinding(action=self.trigger_action, binding=xr.string_to_path(self.instance, f"/user/hand/right/{trigger_path}")),
             )
             xr.suggest_interaction_profile_bindings(
                 self.instance,
                 xr.InteractionProfileSuggestedBinding(
                     interaction_profile=xr.string_to_path(self.instance, profile),
-                    count_suggested_bindings=2,
+                    count_suggested_bindings=4,
                     suggested_bindings=bindings,
                 ),
             )
@@ -218,6 +233,22 @@ class HeadlessSession:
 
     def sync_actions(self) -> None:
         xr.sync_actions(self.session, xr.ActionsSyncInfo(count_active_action_sets=1, active_action_sets=self._active_sets))
+
+    def trigger(self, hand: str) -> float:
+        """Current trigger value (0..1) of a hand; call :meth:`sync_actions` first."""
+        state = xr.get_action_state_float(
+            self.session, xr.ActionStateGetInfo(action=self.trigger_action, subaction_path=self.hand_paths[hand]))
+        return float(state.current_state) if state.is_active else 0.0
+
+    def view_fovs(self, time_ns: int):
+        """Per-view (left, right, up, down) field of view angles in radians."""
+        _, views = self.locate_views(time_ns)
+        return [(v.fov.angle_left, v.fov.angle_right, v.fov.angle_up, v.fov.angle_down) for v in views]
+
+    def recommended_view_size(self):
+        """(width, height) the runtime recommends for one view's image."""
+        views = xr.enumerate_view_configuration_views(self.instance, self.system_id, self.view_configuration_type)
+        return int(views[0].recommended_image_rect_width), int(views[0].recommended_image_rect_height)
 
     def current_interaction_profile(self, hand: str) -> str:
         state = xr.get_current_interaction_profile(self.session, self.hand_paths[hand])

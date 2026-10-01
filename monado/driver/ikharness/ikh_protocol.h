@@ -23,7 +23,10 @@
  * describing every device (index, kind, role, serial). The client then sends
  * IKH_MSG_FRAME messages; every applied frame is answered with IKH_MSG_ACK,
  * which lets an orchestrator know the poses are live before it waits on the
- * application under test.
+ * application under test. IKH_MSG_INPUT sets controller buttons and axes (for
+ * example both triggers to confirm a T-pose calibration). Several clients may
+ * be connected at once: one feeding poses, others reading them back with
+ * IKH_MSG_GET_STATE.
  *
  * @ingroup drv_ikharness
  */
@@ -54,6 +57,9 @@ enum ikh_msg_type
 	IKH_MSG_PING = 4,  //!< client -> server: empty payload
 	IKH_MSG_PONG = 5,  //!< server -> client: @ref ikh_msg_ack with the last applied frame
 	IKH_MSG_QUERY = 6, //!< client -> server: empty payload, ask for HELLO again
+	IKH_MSG_INPUT = 7, //!< client -> server: controller buttons/axes (@ref ikh_msg_input), answered with ACK
+	IKH_MSG_GET_STATE = 8, //!< client -> server: empty payload, ask for the current poses
+	IKH_MSG_STATE = 9, //!< server -> client: @ref ikh_msg_frame layout holding every device's current pose
 };
 
 enum ikh_device_kind
@@ -79,6 +85,26 @@ enum ikh_pose_flags
 	IKH_POSE_CONNECTED = 1u << 5,
 
 	IKH_POSE_DEFAULT = IKH_POSE_ORIENTATION_VALID | IKH_POSE_POSITION_VALID | IKH_POSE_TRACKED | IKH_POSE_CONNECTED,
+};
+
+/*!
+ * Bits for @ref ikh_input::buttons. Analog values live in their own fields; a trigger
+ * value >= 0.75 also counts as a click and > 0.05 as a touch, so sending trigger = 1.0 is
+ * enough to "pull the trigger".
+ */
+enum ikh_button_bits
+{
+	IKH_BUTTON_TRIGGER_CLICK = 1u << 0,
+	IKH_BUTTON_TRIGGER_TOUCH = 1u << 1,
+	IKH_BUTTON_A_CLICK = 1u << 2,
+	IKH_BUTTON_A_TOUCH = 1u << 3,
+	IKH_BUTTON_B_CLICK = 1u << 4,
+	IKH_BUTTON_B_TOUCH = 1u << 5,
+	IKH_BUTTON_SYSTEM_CLICK = 1u << 6,
+	IKH_BUTTON_SYSTEM_TOUCH = 1u << 7,
+	IKH_BUTTON_THUMBSTICK_CLICK = 1u << 8,
+	IKH_BUTTON_THUMBSTICK_TOUCH = 1u << 9,
+	IKH_BUTTON_TRACKPAD_TOUCH = 1u << 10,
 };
 
 #pragma pack(push, 1)
@@ -125,6 +151,26 @@ struct ikh_msg_frame
 	uint64_t frame_id;    //!< echoed back in ACK; orchestrator chooses the numbering
 	int64_t timestamp_ns; //!< 0 = stamp with the driver's monotonic clock on receipt
 	uint32_t pose_count;
+	uint32_t reserved;
+};
+
+//! 40 bytes. Inputs of one controller; they stay in effect until replaced.
+struct ikh_input
+{
+	uint32_t index;       //!< device index from HELLO (a controller)
+	uint32_t buttons;     //!< enum ikh_button_bits
+	float trigger;        //!< 0..1
+	float squeeze;        //!< 0..1
+	float thumbstick[2];  //!< -1..1
+	float trackpad[2];    //!< -1..1
+	float trackpad_force; //!< 0..1
+	uint32_t reserved;
+};
+
+//! 8 bytes, followed by @c count @ref ikh_input.
+struct ikh_msg_input
+{
+	uint32_t count;
 	uint32_t reserved;
 };
 

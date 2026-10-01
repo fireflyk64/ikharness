@@ -68,9 +68,10 @@ config_set_defaults(struct ikh_config *c)
 	U_ZERO(c);
 	c->port = IKH_DEFAULT_PORT;
 	snprintf(c->bind_addr, sizeof(c->bind_addr), "127.0.0.1");
-	c->hmd.w_pixels = 1280;
-	c->hmd.h_pixels = 720;
-	c->hmd.fov_deg = 90.0f;
+	c->hmd.eye_w_pixels = 1024;
+	c->hmd.eye_h_pixels = 1024;
+	c->hmd.fov_h_deg = 100.0f;
+	c->hmd.fov_v_deg = 0.0f; // derived: square pixels
 	c->hmd.ipd_m = 0.063f;
 	c->hmd.view_count = 2;
 	c->hmd.refresh_hz = 90.0f;
@@ -106,17 +107,28 @@ config_apply_json(const cJSON *root, struct ikh_config *c)
 	if (hmd != NULL) {
 		int v = 0;
 		float f = 0.0f;
-		if (u_json_get_int(u_json_get(hmd, "width"), &v) && v > 0) {
-			c->hmd.w_pixels = (uint32_t)v;
-		}
-		if (u_json_get_int(u_json_get(hmd, "height"), &v) && v > 0) {
-			c->hmd.h_pixels = (uint32_t)v;
-		}
 		if (u_json_get_int(u_json_get(hmd, "view_count"), &v) && (v == 1 || v == 2)) {
 			c->hmd.view_count = (uint32_t)v;
 		}
-		if (u_json_get_float(u_json_get(hmd, "fov_deg"), &f) && f > 10.0f && f < 180.0f) {
-			c->hmd.fov_deg = f;
+		// Preferred keys: the size and field of view of one eye.
+		if (u_json_get_int(u_json_get(hmd, "eye_width"), &v) && v > 0) {
+			c->hmd.eye_w_pixels = (uint32_t)v;
+		} else if (u_json_get_int(u_json_get(hmd, "width"), &v) && v > 0) {
+			// Legacy: width of the whole side-by-side panel.
+			c->hmd.eye_w_pixels = (uint32_t)v / c->hmd.view_count;
+		}
+		if (u_json_get_int(u_json_get(hmd, "eye_height"), &v) && v > 0) {
+			c->hmd.eye_h_pixels = (uint32_t)v;
+		} else if (u_json_get_int(u_json_get(hmd, "height"), &v) && v > 0) {
+			c->hmd.eye_h_pixels = (uint32_t)v;
+		}
+		if (u_json_get_float(u_json_get(hmd, "fov_h_deg"), &f) && f > 10.0f && f < 170.0f) {
+			c->hmd.fov_h_deg = f;
+		} else if (u_json_get_float(u_json_get(hmd, "fov_deg"), &f) && f > 10.0f && f < 170.0f) {
+			c->hmd.fov_h_deg = f;
+		}
+		if (u_json_get_float(u_json_get(hmd, "fov_v_deg"), &f) && f >= 0.0f && f < 170.0f) {
+			c->hmd.fov_v_deg = f;
 		}
 		if (u_json_get_float(u_json_get(hmd, "ipd_m"), &f) && f > 0.0f) {
 			c->hmd.ipd_m = f;
@@ -480,56 +492,113 @@ apply_frame(struct ikh_hub *hub, const uint8_t *payload, uint32_t payload_size)
 	return true;
 }
 
-static void
-serve_client(struct ikh_hub *hub, int fd)
+static bool
+apply_input(struct ikh_hub *hub, const uint8_t *payload, uint32_t payload_size)
 {
-	uint8_t *payload = U_TYPED_ARRAY_CALLOC(uint8_t, IKH_MAX_PAYLOAD_SIZE);
+	if (payload_size < sizeof(struct ikh_msg_input)) {
+		IKH_ERROR(hub, "INPUT payload too small (%u bytes)", payload_size);
+		return false;
+	}
+	struct ikh_msg_input msg;
+	memcpy(&msg, payload, sizeof(msg));
+	size_t expected = sizeof(msg) + (size_t)msg.count * sizeof(struct ikh_input);
+	if (payload_size != expected) {
+		IKH_ERROR(hub, "INPUT payload size %u does not match %u entries (expected %zu)", payload_size, msg.count,
+		          expected);
+		return false;
+	}
+	const uint8_t *ptr = payload + sizeof(msg);
 
-	if (!send_hello(hub, fd)) {
-		free(payload);
-		return;
+	os_mutex_lock(&hub->mutex);
+	for (uint32_t i = 0; i < msg.count; i++, ptr += sizeof(struct ikh_input)) {
+		struct ikh_input in;
+		memcpy(&in, ptr, sizeof(in));
+		if (in.index >= hub->device_count) {
+			IKH_WARN(hub, "INPUT for unknown device index %u ignored", in.index);
+			continue;
+		}
+		struct ikh_input_state *st = &hub->inputs[in.index];
+		st->buttons = in.buttons;
+		st->trigger = in.trigger;
+		st->squeeze = in.squeeze;
+		st->thumbstick = (struct xrt_vec2){in.thumbstick[0], in.thumbstick[1]};
+		st->trackpad = (struct xrt_vec2){in.trackpad[0], in.trackpad[1]};
+		st->trackpad_force = in.trackpad_force;
+	}
+	os_mutex_unlock(&hub->mutex);
+	return true;
+}
+
+static bool
+send_state(struct ikh_hub *hub, int fd)
+{
+	size_t size = sizeof(struct ikh_msg_frame) + hub->device_count * sizeof(struct ikh_pose);
+	uint8_t *buf = U_TYPED_ARRAY_CALLOC(uint8_t, size);
+	struct ikh_msg_frame *frame = (struct ikh_msg_frame *)buf;
+	struct ikh_pose *poses = (struct ikh_pose *)(buf + sizeof(*frame));
+
+	os_mutex_lock(&hub->mutex);
+	frame->frame_id = hub->last_frame_id;
+	frame->timestamp_ns = hub->last_frame_ns;
+	frame->pose_count = hub->device_count;
+	for (uint32_t i = 0; i < hub->device_count; i++) {
+		const struct ikh_device_state *st = &hub->states[i];
+		poses[i].index = i;
+		poses[i].flags = st->flags;
+		poses[i].position[0] = st->pose.position.x;
+		poses[i].position[1] = st->pose.position.y;
+		poses[i].position[2] = st->pose.position.z;
+		poses[i].orientation[0] = st->pose.orientation.x;
+		poses[i].orientation[1] = st->pose.orientation.y;
+		poses[i].orientation[2] = st->pose.orientation.z;
+		poses[i].orientation[3] = st->pose.orientation.w;
+		poses[i].linear_velocity[0] = st->linear_velocity.x;
+		poses[i].linear_velocity[1] = st->linear_velocity.y;
+		poses[i].linear_velocity[2] = st->linear_velocity.z;
+		poses[i].angular_velocity[0] = st->angular_velocity.x;
+		poses[i].angular_velocity[1] = st->angular_velocity.y;
+		poses[i].angular_velocity[2] = st->angular_velocity.z;
+	}
+	os_mutex_unlock(&hub->mutex);
+
+	bool ok = send_msg(hub, fd, IKH_MSG_STATE, buf, (uint32_t)size);
+	free(buf);
+	return ok;
+}
+
+//! Read and handle one message from a client; false means drop the client.
+static bool
+handle_one_message(struct ikh_hub *hub, int fd, uint8_t *payload)
+{
+	struct ikh_msg_header h;
+	if (!read_exact(hub, fd, &h, sizeof(h))) {
+		return false;
+	}
+	if (h.magic != IKH_PROTOCOL_MAGIC) {
+		IKH_ERROR(hub, "Bad magic 0x%08x, dropping client", h.magic);
+		return false;
+	}
+	if (h.version != IKH_PROTOCOL_VERSION) {
+		IKH_ERROR(hub, "Protocol version %u not supported (want %u), dropping client", h.version,
+		          IKH_PROTOCOL_VERSION);
+		return false;
+	}
+	if (h.payload_size > IKH_MAX_PAYLOAD_SIZE) {
+		IKH_ERROR(hub, "Payload of %u bytes too large, dropping client", h.payload_size);
+		return false;
+	}
+	if (h.payload_size > 0 && !read_exact(hub, fd, payload, h.payload_size)) {
+		return false;
 	}
 
-	while (os_thread_helper_is_running(&hub->oth)) {
-		struct ikh_msg_header h;
-		if (!read_exact(hub, fd, &h, sizeof(h))) {
-			break;
-		}
-		if (h.magic != IKH_PROTOCOL_MAGIC) {
-			IKH_ERROR(hub, "Bad magic 0x%08x, dropping client", h.magic);
-			break;
-		}
-		if (h.version != IKH_PROTOCOL_VERSION) {
-			IKH_ERROR(hub, "Protocol version %u not supported (want %u), dropping client", h.version,
-			          IKH_PROTOCOL_VERSION);
-			break;
-		}
-		if (h.payload_size > IKH_MAX_PAYLOAD_SIZE) {
-			IKH_ERROR(hub, "Payload of %u bytes too large, dropping client", h.payload_size);
-			break;
-		}
-		if (h.payload_size > 0 && !read_exact(hub, fd, payload, h.payload_size)) {
-			break;
-		}
-
-		bool ok = true;
-		switch (h.type) {
-		case IKH_MSG_FRAME:
-			ok = apply_frame(hub, payload, h.payload_size);
-			if (ok) {
-				ok = send_ack(hub, fd, IKH_MSG_ACK);
-			}
-			break;
-		case IKH_MSG_PING: ok = send_ack(hub, fd, IKH_MSG_PONG); break;
-		case IKH_MSG_QUERY: ok = send_hello(hub, fd); break;
-		default: IKH_WARN(hub, "Unknown message type %u ignored", h.type); break;
-		}
-		if (!ok) {
-			break;
-		}
+	switch (h.type) {
+	case IKH_MSG_FRAME: return apply_frame(hub, payload, h.payload_size) && send_ack(hub, fd, IKH_MSG_ACK);
+	case IKH_MSG_INPUT: return apply_input(hub, payload, h.payload_size) && send_ack(hub, fd, IKH_MSG_ACK);
+	case IKH_MSG_PING: return send_ack(hub, fd, IKH_MSG_PONG);
+	case IKH_MSG_QUERY: return send_hello(hub, fd);
+	case IKH_MSG_GET_STATE: return send_state(hub, fd);
+	default: IKH_WARN(hub, "Unknown message type %u ignored", h.type); return true;
 	}
-
-	free(payload);
 }
 
 static int
@@ -560,7 +629,7 @@ setup_listen_socket(struct ikh_hub *hub)
 		close(fd);
 		return -1;
 	}
-	if (listen(fd, 4) < 0) {
+	if (listen(fd, IKH_MAX_CLIENTS) < 0) {
 		IKH_ERROR(hub, "listen: %s", strerror(errno));
 		close(fd);
 		return -1;
@@ -570,6 +639,52 @@ setup_listen_socket(struct ikh_hub *hub)
 	return fd;
 }
 
+static void
+accept_client(struct ikh_hub *hub, int lfd)
+{
+	struct sockaddr_in peer = {0};
+	socklen_t peer_len = sizeof(peer);
+	int fd = accept4(lfd, (struct sockaddr *)&peer, &peer_len, SOCK_CLOEXEC);
+	if (fd < 0) {
+		if (errno != EINTR) {
+			IKH_ERROR(hub, "accept: %s", strerror(errno));
+		}
+		return;
+	}
+	int slot = -1;
+	for (int i = 0; i < IKH_MAX_CLIENTS; i++) {
+		if (hub->client_fds[i] < 0) {
+			slot = i;
+			break;
+		}
+	}
+	if (slot < 0) {
+		IKH_WARN(hub, "Too many clients (%d), refusing connection", IKH_MAX_CLIENTS);
+		close(fd);
+		return;
+	}
+
+	int flag = 1;
+	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
+	char peer_str[INET_ADDRSTRLEN] = "?";
+	inet_ntop(AF_INET, &peer.sin_addr, peer_str, sizeof(peer_str));
+	IKH_INFO(hub, "Client %d connected from %s:%u", slot, peer_str, ntohs(peer.sin_port));
+
+	os_mutex_lock(&hub->mutex);
+	hub->clients_served++;
+	os_mutex_unlock(&hub->mutex);
+
+	if (!send_hello(hub, fd)) {
+		close(fd);
+		return;
+	}
+	hub->client_fds[slot] = fd;
+}
+
+/*
+ * One thread serves the listen socket and every client: a feeder that sends frames and
+ * inputs, and readers (for example a demo application) that poll the current state.
+ */
 static void *
 run_thread(void *ptr)
 {
@@ -581,41 +696,48 @@ run_thread(void *ptr)
 		return NULL;
 	}
 	hub->accept_fd = lfd;
+	uint8_t *payload = U_TYPED_ARRAY_CALLOC(uint8_t, IKH_MAX_PAYLOAD_SIZE);
 
 	while (os_thread_helper_is_running(&hub->oth)) {
-		if (!wait_readable(hub, lfd)) {
-			break;
+		fd_set set;
+		FD_ZERO(&set);
+		FD_SET(lfd, &set);
+		int max_fd = lfd;
+		for (int i = 0; i < IKH_MAX_CLIENTS; i++) {
+			if (hub->client_fds[i] >= 0) {
+				FD_SET(hub->client_fds[i], &set);
+				max_fd = hub->client_fds[i] > max_fd ? hub->client_fds[i] : max_fd;
+			}
 		}
-		struct sockaddr_in peer = {0};
-		socklen_t peer_len = sizeof(peer);
-		int fd = accept4(lfd, (struct sockaddr *)&peer, &peer_len, SOCK_CLOEXEC);
-		if (fd < 0) {
+		struct timeval timeout = {.tv_sec = 0, .tv_usec = 250000};
+		int ret = select(max_fd + 1, &set, NULL, NULL, &timeout);
+		if (ret < 0) {
 			if (errno == EINTR) {
 				continue;
 			}
-			IKH_ERROR(hub, "accept: %s", strerror(errno));
+			IKH_ERROR(hub, "select: %s", strerror(errno));
 			break;
 		}
-
-		int flag = 1;
-		setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flag, sizeof(flag));
-
-		char peer_str[INET_ADDRSTRLEN] = "?";
-		inet_ntop(AF_INET, &peer.sin_addr, peer_str, sizeof(peer_str));
-		IKH_INFO(hub, "Client connected from %s:%u", peer_str, ntohs(peer.sin_port));
-
-		hub->conn_fd = fd;
-		os_mutex_lock(&hub->mutex);
-		hub->clients_served++;
-		os_mutex_unlock(&hub->mutex);
-
-		serve_client(hub, fd);
-
-		hub->conn_fd = -1;
-		close(fd);
-		IKH_INFO(hub, "Client connection closed");
+		if (ret == 0) {
+			continue;
+		}
+		if (FD_ISSET(lfd, &set)) {
+			accept_client(hub, lfd);
+		}
+		for (int i = 0; i < IKH_MAX_CLIENTS; i++) {
+			int fd = hub->client_fds[i];
+			if (fd < 0 || !FD_ISSET(fd, &set)) {
+				continue;
+			}
+			if (!handle_one_message(hub, fd, payload)) {
+				close(fd);
+				hub->client_fds[i] = -1;
+				IKH_INFO(hub, "Client %d connection closed", i);
+			}
+		}
 	}
 
+	free(payload);
 	IKH_DEBUG(hub, "Leaving server thread");
 	return NULL;
 }
@@ -635,9 +757,11 @@ hub_destroy(struct ikh_hub *hub)
 	os_thread_helper_stop_and_wait(&hub->oth);
 	os_thread_helper_destroy(&hub->oth);
 
-	if (hub->conn_fd >= 0) {
-		close(hub->conn_fd);
-		hub->conn_fd = -1;
+	for (int i = 0; i < IKH_MAX_CLIENTS; i++) {
+		if (hub->client_fds[i] >= 0) {
+			close(hub->client_fds[i]);
+			hub->client_fds[i] = -1;
+		}
 	}
 	if (hub->accept_fd >= 0) {
 		close(hub->accept_fd);
@@ -715,6 +839,14 @@ ikh_hub_is_connected(struct ikh_hub *hub, uint32_t index)
 	return connected;
 }
 
+void
+ikh_hub_get_inputs(struct ikh_hub *hub, uint32_t index, struct ikh_input_state *out)
+{
+	os_mutex_lock(&hub->mutex);
+	*out = hub->inputs[index];
+	os_mutex_unlock(&hub->mutex);
+}
+
 xrt_result_t
 ikh_hub_create(const struct ikh_config *config, struct ikh_hub **out_hub)
 {
@@ -722,7 +854,9 @@ ikh_hub_create(const struct ikh_config *config, struct ikh_hub **out_hub)
 	hub->config = *config;
 	hub->log_level = ikh_log_level();
 	hub->accept_fd = -1;
-	hub->conn_fd = -1;
+	for (int i = 0; i < IKH_MAX_CLIENTS; i++) {
+		hub->client_fds[i] = -1;
+	}
 	hub->refcount = 1;
 
 	hub->origin.type = XRT_TRACKING_TYPE_OTHER;

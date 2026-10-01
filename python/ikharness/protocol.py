@@ -36,6 +36,8 @@ _HELLO = struct.Struct("<II")  # device_count, reserved
 _POSE = struct.Struct("<II3f4f3f3f")  # index, flags, pos, quat, linvel, angvel
 _FRAME = struct.Struct("<QqII")  # frame_id, timestamp_ns, pose_count, reserved
 _ACK = struct.Struct("<Qq")  # frame_id, applied_at_ns
+_INPUT_HEADER = struct.Struct("<II")  # count, reserved
+_INPUT = struct.Struct("<II2f2f2ffI")  # index, buttons, trigger, squeeze, thumbstick xy, trackpad xy, trackpad_force, reserved
 
 
 class MsgType(enum.IntEnum):
@@ -45,6 +47,9 @@ class MsgType(enum.IntEnum):
     PING = 4
     PONG = 5
     QUERY = 6
+    INPUT = 7
+    GET_STATE = 8
+    STATE = 9
 
 
 class DeviceKind(enum.IntEnum):
@@ -62,6 +67,20 @@ class PoseFlags(enum.IntFlag):
     ANGULAR_VELOCITY_VALID = 1 << 4
     CONNECTED = 1 << 5
     DEFAULT = ORIENTATION_VALID | POSITION_VALID | TRACKED | CONNECTED
+
+
+class Buttons(enum.IntFlag):
+    TRIGGER_CLICK = 1 << 0
+    TRIGGER_TOUCH = 1 << 1
+    A_CLICK = 1 << 2
+    A_TOUCH = 1 << 3
+    B_CLICK = 1 << 4
+    B_TOUCH = 1 << 5
+    SYSTEM_CLICK = 1 << 6
+    SYSTEM_TOUCH = 1 << 7
+    THUMBSTICK_CLICK = 1 << 8
+    THUMBSTICK_TOUCH = 1 << 9
+    TRACKPAD_TOUCH = 1 << 10
 
 
 Vec3 = Tuple[float, float, float]
@@ -82,6 +101,21 @@ class Pose:
     def disconnected() -> "Pose":
         """A pose that makes the device report as not connected / not tracked."""
         return Pose(flags=PoseFlags(0))
+
+
+@dataclass
+class Inputs:
+    """Buttons and axes of one controller; they stay in effect until replaced.
+
+    A trigger value >= 0.75 also counts as a click, so ``Inputs(trigger=1.0)`` pulls it.
+    """
+
+    trigger: float = 0.0
+    squeeze: float = 0.0
+    buttons: Buttons = Buttons(0)
+    thumbstick: Tuple[float, float] = (0.0, 0.0)
+    trackpad: Tuple[float, float] = (0.0, 0.0)
+    trackpad_force: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -245,6 +279,32 @@ class IkhClient:
             raise ProtocolError(f"expected ACK, got {mtype.name}")
         self.last_ack = Ack(*_ACK.unpack(payload))
         return self.last_ack
+
+    def send_inputs(self, inputs: Mapping[Union[str, int], Inputs]) -> Ack:
+        """Set controller buttons/axes, e.g. ``{"left_hand": Inputs(trigger=1.0)}``."""
+        body = bytearray(_INPUT_HEADER.pack(len(inputs), 0))
+        for key, inp in inputs.items():
+            d = self.device(key)
+            body += _INPUT.pack(d.index, int(inp.buttons), inp.trigger, inp.squeeze, *inp.thumbstick, *inp.trackpad,
+                                inp.trackpad_force, 0)
+        self._send_msg(MsgType.INPUT, bytes(body))
+        mtype, payload = self._recv_msg()
+        if mtype != MsgType.ACK:
+            raise ProtocolError(f"expected ACK, got {mtype.name}")
+        return Ack(*_ACK.unpack(payload))
+
+    def get_state(self) -> Tuple[int, Dict[str, Pose]]:
+        """The driver's current poses for every device: ``(last frame id, {name: Pose})``."""
+        self._send_msg(MsgType.GET_STATE)
+        mtype, payload = self._recv_msg()
+        if mtype != MsgType.STATE:
+            raise ProtocolError(f"expected STATE, got {mtype.name}")
+        frame_id, _ts, count, _ = _FRAME.unpack_from(payload, 0)
+        out: Dict[str, Pose] = {}
+        for i in range(count):
+            v = _POSE.unpack_from(payload, _FRAME.size + i * _POSE.size)
+            out[self.devices[v[0]].name] = Pose(tuple(v[2:5]), tuple(v[5:9]), tuple(v[9:12]), tuple(v[12:15]), PoseFlags(v[1]))
+        return frame_id, out
 
     def ping(self) -> Ack:
         self._send_msg(MsgType.PING)

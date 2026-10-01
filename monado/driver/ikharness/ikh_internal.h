@@ -36,6 +36,21 @@ struct ikh_device_state
 };
 
 /*!
+ * Latest controller inputs of one device, protected by @ref ikh_hub::mutex.
+ */
+struct ikh_input_state
+{
+	uint32_t buttons; //!< enum ikh_button_bits
+	float trigger;
+	float squeeze;
+	struct xrt_vec2 thumbstick;
+	struct xrt_vec2 trackpad;
+	float trackpad_force;
+};
+
+#define IKH_MAX_CLIENTS 8
+
+/*!
  * Static description of one published device.
  */
 struct ikh_device_desc_internal
@@ -63,11 +78,12 @@ struct ikh_hub
 
 	struct os_thread_helper oth;
 	int accept_fd;
-	int conn_fd;
+	int client_fds[IKH_MAX_CLIENTS];
 
 	uint32_t device_count;
 	struct ikh_device_desc_internal descs[IKH_MAX_DEVICES];
 	struct ikh_device_state states[IKH_MAX_DEVICES];
+	struct ikh_input_state inputs[IKH_MAX_DEVICES];
 
 	//! Stats, guarded by mutex.
 	uint64_t last_frame_id;
@@ -106,6 +122,12 @@ ikh_hub_get_relation(struct ikh_hub *hub, uint32_t index, struct xrt_space_relat
  */
 bool
 ikh_hub_is_connected(struct ikh_hub *hub, uint32_t index);
+
+/*!
+ * Copy the current controller inputs of device @p index.
+ */
+void
+ikh_hub_get_inputs(struct ikh_hub *hub, uint32_t index, struct ikh_input_state *out);
 
 
 /*
