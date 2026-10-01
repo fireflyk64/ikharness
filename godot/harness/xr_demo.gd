@@ -280,6 +280,8 @@ func calibrate(poses: Dictionary) -> bool:
 			"none": adapter = Harness.IKAdapter.new()
 			_: adapter = Harness.BuiltinAdapter.new()
 		adapter.setup(world, skeleton, {"roles": roles})
+		if adapter.get("instant_placement") != null:
+			adapter.instant_placement = false   # live poses: let RenIK's stepping gait run
 	calibrations += 1
 	_place_spectator()
 	var root: Transform3D = calibration["root"]

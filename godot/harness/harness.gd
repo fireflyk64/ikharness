@@ -196,6 +196,8 @@ func read_global_poses() -> Dictionary:
 # modifiers) ran for the previous frame.
 func step() -> void:
 	var frames: Array = test["frames"]
+	if adapter.busy():
+		return   # e.g. waiting for a physics tick; settle frames count from when it is done
 	if frame_index >= 0 and settle_left > 0:
 		settle_left -= 1
 		if settle_left == 0:
@@ -204,6 +206,12 @@ func step() -> void:
 			results.append({"index": frame["index"], "time": frame.get("time", 0.0), "bones": bones})
 			write_shadermotion_frame(int(frame["index"]))
 			write_shadermotion_gpu_frame(int(frame["index"]))
+			if OS.get_environment("IKH_DEBUG") != "" and adapter.get("placement") != null:
+				for side in ["left_foot", "right_foot"]:
+					var bn: String = "LeftFoot" if side == "left_foot" else "RightFoot"
+					var kn: String = "LeftLowerLeg" if side == "left_foot" else "RightLowerLeg"
+					print("debug placed %s: target %s / foot bone %s / knee %s / walk_state %s" % [side, adapter.targets[side].global_position,
+						bones[bn]["position"], bones[kn]["position"], adapter.placement.walk_state])
 			if frame_index == 0 and OS.get_environment("IKH_DEBUG") != "":
 				for role in test["roles"]:
 					var rule: Dictionary = test["rules"][role]
@@ -266,6 +274,9 @@ class IKAdapter extends RefCounted:
 		pass
 	func apply_frame(_h: SceneTree, _frame: Dictionary) -> void:
 		pass
+	# True while the adapter still has to react to the last apply_frame (the harness waits).
+	func busy() -> bool:
+		return false
 
 
 # RenIK (GDScript port, addons/renik): spine solver with head/hip/chest
@@ -274,6 +285,16 @@ class RenIKAdapter extends IKAdapter:
 	var targets := {}
 	var spine_ik
 	var limbs := {}
+	var poles := {}          # limb role -> [pole node, elbow/knee role]
+	var chest_id := -1
+	var placement = null     # RenIKPlacement3D when the feet are not tracked (3 / 4 point sets)
+	var placement_pending := false
+	# The harness shows unrelated poses one after another, so feet are placed at once; a live
+	# application sets this to false and gets RenIK's stepping gait.
+	var instant_placement := true
+	var placed := {}         # foot role -> node RenIK placement writes to
+	var foot_fix := {}       # foot role -> rotation from RenIK's flat foot to this rig's foot bone
+	var skeleton: Skeleton3D
 
 	func implementation_name() -> String:
 		return "renik"
@@ -286,12 +307,14 @@ class RenIKAdapter extends IKAdapter:
 
 	func setup(root: Node3D, skel: Skeleton3D, test: Dictionary) -> void:
 		var roles: Array = test["roles"]
+		skeleton = skel
 		for role in ["head", "waist", "chest", "left_hand", "right_hand", "left_foot", "right_foot", "left_elbow", "right_elbow", "left_knee", "right_knee"]:
 			targets[role] = _marker(root, role.capitalize().replace(" ", "") + "Target")
 			targets[role].visible = roles.has(role)
 
 		var uchest := skel.find_bone("UpperChest")
 		var chest_bone := skel.get_bone_name(skel.find_bone("Chest")) if uchest != -1 else skel.get_bone_name(skel.find_bone("Spine"))
+		chest_id = skel.find_bone(chest_bone)
 
 		spine_ik = RenIKSpineModifier3D.new()
 		spine_ik.name = "SpineIK"
@@ -303,12 +326,56 @@ class RenIKAdapter extends IKAdapter:
 		spine_ik.chest_target = targets["chest"]
 		skel.add_child(spine_ik)
 
+		# Without foot trackers RenIK places the feet itself (raycasts onto the floor below the
+		# head, a stepping gait when moving) and, without a waist tracker, the hips too.
+		# IKH_RENIK_PLACEMENT=0 leaves the legs in their rest pose instead.
+		var place_feet: bool = not (roles.has("left_foot") and roles.has("right_foot")) and OS.get_environment("IKH_RENIK_PLACEMENT") != "0"
+		if place_feet:
+			var floor_body := StaticBody3D.new()
+			floor_body.name = "Floor"
+			var shape := CollisionShape3D.new()
+			shape.shape = WorldBoundaryShape3D.new()
+			floor_body.add_child(shape)
+			root.add_child(floor_body)
+			placement = RenIKPlacement3D.new()
+			placement.name = "Placement"
+			placement.enable_left_foot_placement = true
+			placement.enable_right_foot_placement = true
+			placement.enable_hip_placement = not roles.has("waist")
+			# RenIK puts the hips at crouch_ratio of the head-to-foot distance below the head; its
+			# default (0.4) fits its own test avatar. Use this avatar's standing proportions.
+			var head_y := skel.get_bone_global_rest(skel.find_bone("Head")).origin.y
+			var hips_y := skel.get_bone_global_rest(skel.find_bone("Hips")).origin.y
+			var foot_y := skel.get_bone_global_rest(skel.find_bone("LeftFoot")).origin.y
+			placement.crouch_ratio = (head_y - hips_y) / maxf(head_y - foot_y, 0.01)
+			root.add_child(placement)
+			placement.armature_skeleton_path = placement.get_path_to(skel)
+			placement.armature_head_target = placement.get_path_to(targets["head"])
+			placement.armature_hip_target = placement.get_path_to(targets["waist"])
+			# RenIK places a foot as a bone lying flat and pointing forward (foot_basis_offset); in
+			# the humanoid profile the foot bone points down to the toes. Placement writes to raw
+			# nodes and the limb targets get the rest pitch added (copy_placed_feet).
+			for side in ["left_foot", "right_foot"]:
+				placed[side] = _marker(root, side.capitalize().replace(" ", "") + "Placed")
+				var rest: Basis = skel.get_bone_global_rest(skel.find_bone("LeftFoot" if side == "left_foot" else "RightFoot")).basis.orthonormalized()
+				foot_fix[side] = placement.foot_basis_offset.inverse() * rest
+			placement.armature_left_foot_target = placement.get_path_to(placed["left_foot"])
+			placement.armature_right_foot_target = placement.get_path_to(placed["right_foot"])
+			targets["left_foot"].visible = true
+			targets["right_foot"].visible = true
+			if placement.enable_hip_placement:
+				targets["waist"].visible = true
+			var driver := PlacementDriver.new()
+			driver.name = "PlacementDriver"
+			driver.adapter = self
+			root.add_child(driver)
+
 		for spec in [["left_hand", RenIKLimbModifier3D.LEFT_HAND, true, "left_elbow"],
 					 ["right_hand", RenIKLimbModifier3D.RIGHT_HAND, true, "right_elbow"],
 					 ["left_foot", RenIKLimbModifier3D.LEFT_FOOT, false, "left_knee"],
 					 ["right_foot", RenIKLimbModifier3D.RIGHT_FOOT, false, "right_knee"]]:
 			var role: String = spec[0]
-			if not roles.has(role):
+			if not roles.has(role) and not (place_feet and not spec[2]):
 				continue
 			var limb := RenIKLimbModifier3D.new()
 			limb.name = role.capitalize().replace(" ", "")
@@ -320,15 +387,65 @@ class RenIKAdapter extends IKAdapter:
 				limb.assign_leg_defaults.call()
 			limb.target = targets[role]
 			if roles.has(spec[3]):
-				limb.pole_target = targets[spec[3]]
+				var pole := _marker(root, role.capitalize().replace(" ", "") + "Pole")
+				limb.pole_target = pole
+				poles[role] = [pole, spec[3]]
 			skel.add_child(limb)
 			limbs[role] = limb
+
+	func busy() -> bool:
+		return placement_pending
+
+	func copy_placed_feet() -> void:
+		for side in placed:
+			var raw: Transform3D = placed[side].global_transform
+			targets[side].global_transform = Transform3D(raw.basis.orthonormalized() * foot_fix[side], raw.origin)
+
+	# Called on a physics tick (raycasts need one): feet, then hips, straight to their places.
+	func place_now(delta: float) -> void:
+		placement_pending = false
+		var head: Transform3D = targets["head"].global_transform
+		placement.prevHead = head.origin     # a new pose, not a movement: no velocity, no stride
+		placement.foot_place(delta, head, skeleton.get_world_3d(), true)
+		placement.target_foot_is_valid = true
+		if placement.enable_hip_placement:
+			placement.hip_place(delta, head, placement.target_left_foot, placement.target_right_foot, 0.0, true)
+			placement.target_hip_is_valid = true
+		placement.save_previous_transforms()
+		placement.interpolate_transforms(1.0)
+		copy_placed_feet()
+		if OS.get_environment("IKH_DEBUG") != "":
+			print("debug placement: head %s -> left foot %s right foot %s hips %s (legs %.3f/%.3f spine %.3f hip_offset %s)" % [
+				head.origin, placement.target_left_foot.origin, placement.target_right_foot.origin, placement.target_hip.origin,
+				placement.left_leg_length, placement.right_leg_length, placement.spine_length, placement.hip_offset])
+			print("debug placement: hip offsets %s %s" % [placement.left_hip_offset, placement.right_hip_offset])
 
 	func apply_frame(h: SceneTree, frame: Dictionary) -> void:
 		var harness = h
 		for role in targets.keys():
 			if harness.has_tracker(role):
 				targets[role].global_transform = harness.bone_target_xform(frame, role)
+		if placement != null and instant_placement:
+			placement_pending = true
+		# RenIK's spine solver adds (chest target - the chest bone's pose before solving) to the
+		# head target, which only makes sense when the skeleton node itself follows the player.
+		# Ours stands still while the pose moves, so hand it the chest's orientation only.
+		if harness.has_tracker("chest") and chest_id >= 0:
+			var xf: Transform3D = targets["chest"].global_transform
+			targets["chest"].global_transform = Transform3D(xf.basis, skeleton.global_transform * skeleton.get_bone_global_pose(chest_id).origin)
+		# RenIK's pole target is a direction, not a point to bend towards: the limb bends in the
+		# plane through its root, its target and the point 1000 m along the pole node's +Z, turned
+		# about Y by the limb's twist offset. An elbow / knee tracker gives the lower bone's
+		# orientation, and in the humanoid profile the hinge axis of every limb is the lower
+		# bone's local X (measured on four datasets), so the in-plane direction is its -Z. For
+		# legs RenIK's own offset (pi) already yields -Z; for arms (-pi/2) it yields the hinge
+		# axis itself, which left the bend plane undefined: turn the node to compensate.
+		for role in poles:
+			var limb = limbs[role]
+			var lower: Transform3D = harness.bone_target_xform(frame, poles[role][1])
+			var renik_dir: Vector3 = Quaternion(Vector3.UP, -limb.mirror_factor * limb.lower_twist_offset) * Vector3(0, 0, 1)
+			var fix := Basis(Quaternion(renik_dir, Vector3(0, 0, -1))) if renik_dir.dot(Vector3(0, 0, -1)) < 0.999 else Basis.IDENTITY
+			poles[role][0].global_transform = Transform3D(lower.basis.orthonormalized() * fix, lower.origin)
 
 
 # Godot's built-in modifiers: FABRIK3D for the spine chain, TwoBoneIK3D for
@@ -433,6 +550,17 @@ class BuiltinAdapter extends IKAdapter:
 					poles[limb].global_position = t + facing * Vector3(0.0, -0.1, -0.5)
 				else:
 					poles[limb].global_position = t + facing * Vector3(0.0, 0.5, 0.6)
+
+
+class PlacementDriver extends Node:
+	var adapter
+	func _init() -> void:
+		process_priority = 100    # after RenIK placement interpolated its targets for this frame
+	func _physics_process(delta: float) -> void:
+		if adapter.placement_pending:
+			adapter.place_now(delta)
+	func _process(_delta: float) -> void:
+		adapter.copy_placed_feet()
 
 
 class HipsModifier extends SkeletonModifier3D:
