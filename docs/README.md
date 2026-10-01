@@ -7,9 +7,9 @@ The task list lives in [`../TODO.md`](../TODO.md).
 | Document | Subproject | State |
 |---|---|---|
 | [getting-started.md](getting-started.md) | Install, use with your own animations, all three pipelines | current |
-| [STATUS.md](STATUS.md) | What works, numbers, findings, limitations | 2026-09-17 |
+| [STATUS.md](STATUS.md) | What works, numbers, findings, limitations | 2026-09-30 |
 | [monado-driver.md](monado-driver.md) | Headless Monado driver feeding trackers into OpenXR / OpenVR apps | working |
-| [datasets.md](datasets.md) | Reference poses from animations, retargeting, limb lengths | working, retargeter pending |
+| [datasets.md](datasets.md) | Reference poses from animations, retargeting, frame selection, export for other engines | working |
 | [scoring.md](scoring.md) | The metric, the single number, negative tests | working |
 | [godot-harness.md](godot-harness.md) | Running IK implementations in Godot | working (RenIK, Godot built-ins, baseline) |
 | [cli.md](cli.md) | The `ikh` driver command | working |
@@ -18,6 +18,7 @@ The task list lives in [`../TODO.md`](../TODO.md).
 | [shadermotion.md](shadermotion.md) | Bone rotations as pixels: codec, Godot encoder and shader, screen capture | working; video pending |
 | [unity.md](unity.md) | Unity avatar, shader, harness | blocked (no Unity) |
 | [resources.md](resources.md) | Memory guard, shared-machine rules, measured budgets | in force |
+| [upstream/](upstream/godot-shader-motion-swing-twist-inv.md) | Report and patch for godot-shader-motion's `swing_twist_inv` | drafted, not filed |
 
 ## The pipeline in one picture
 

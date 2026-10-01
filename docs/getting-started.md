@@ -143,6 +143,14 @@ bone poses and your rig's rest, and score it with:
 scripts/ikh score --dataset out/datasets/mine.json --result my_result.json
 ```
 
+Comparing runs: `scripts/ikh report A.score.json B.score.json` prints a per-bone table with
+deltas and names the bones that changed most; `scripts/ikh report` without arguments
+compares every suite report under `out/suite/`.
+
+More data for the single number: `scripts/ikh suite --suite suites/extended.json --ik builtin
+--build` adds four dance clips with frames chosen by pose diversity (`--select diversity`
+in `ikh dataset build` does the same for your own clips).
+
 ## 4. Read poses back through ShaderMotion (pixels)
 
 Three readouts for the same run:
@@ -205,6 +213,8 @@ off the screen after each one and prints the score. Screenshots land in `out/xr/
 | `out/results/<…>.shadermotion[-gpu]/frame_*.png` | ShaderMotion frames of that run |
 | `out/suite/<suite>_<ik>.json` | the single number and its entries |
 | `out/negative/` | perturbation ladder runs |
+| `out/xr/<dataset>_<ik>_<set>.{screen/,score.json,demo.log,monado.log}` | one run of the OpenXR chain: screenshots, score, logs (and `.mkv` with `--video`) |
+| `out/export/` | datasets written as GLB / Godot scenes by `ikh dataset export-retargeted` |
 
 Checks that catch broken conventions: `ikh eval --ik echo` must score 0.00°; `ikh negative`
 must degrade monotonically; `ikh dataset info` must report ~0° rest deviation;
@@ -220,5 +230,7 @@ rules on small or shared machines).
 * **Rest deviation ≫ 0°** → the rig is not in the profile convention; use `--bone-map`.
 * **Memory** → every engine launch is guarded (3 GB cap, `IKH_MAX_RSS_MB`); on a shared box run
   one thing at a time (`docs/resources.md`).
+* **`ikh xr` times out waiting for the controllers** → the application's action map has no
+  profile the driver offers (Index, Touch, simple); see `docs/godot-openxr.md`.
 * **GPU readout fails to start** → needs `Xvfb` (or set `IKH_GPU_LAUNCHER` to a command prefix
   that provides a display).

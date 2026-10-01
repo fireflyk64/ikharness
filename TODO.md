@@ -134,11 +134,17 @@ test it, and how to see whether it is working (the feedback loop).
 
 ## Later
 
-- [ ] Unity harness + test avatar with compatible rest rotations, ShaderMotion unlit shader,
-      pixel readback (goal 8/9). Blocked on Unity being installed. (`docs/unity.md`)
-- [ ] Closed-source apps (VRChat): Monado OpenVR runtime target + ShaderMotion capture.
-- [ ] BVH and VMD importers in Python (only if the GLB / .tres conversions turn out
-      insufficient).
+- [!] Unity harness + test avatar with compatible rest rotations, ShaderMotion unlit shader,
+      pixel readback (goal 8/9). Blocked: Unity is not installed on this machine. Ready for it:
+      datasets as GLB on the standard skeleton (`ikh dataset export-retargeted`), trackers through
+      HTCX, the screen readout and codec measurements (`ikh xr`, `ikh video`). (`docs/unity.md`)
+- [!] Closed-source apps (VRChat): blocked, neither SteamVR nor VRChat can run here. The path is
+      rehearsed end to end with our own application standing in (`ikh xr`: runtime, calibration
+      by triggers, screen or video capture, decode, score), and the SteamVR plugin forwards the
+      trackers; what is missing is an avatar with the ShaderMotion recorder inside VRChat.
+- [x] BVH and VMD importers in Python: not needed. Every source at hand exists as GLB, VRM or
+      `.tres` (the only `.vmd`, MMD "melt", ships with its GLB conversion; BVH-named rigs go through
+      the `bvh_perfume` bone map), and Godot's importer does the retargeting.
 - [x] SteamVR plugin: generic trackers forwarded with their roles, and the per-eye render target
       size fixed (upstream reported the whole side-by-side screen, a 2:1 image for a square
       frustum: the likely "squished" view). `monado/patches/0004`, tested in a mock vrserver

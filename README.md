@@ -21,22 +21,28 @@ original animation. The goal is a single, comparable score per implementation
 
 | Component | Status | Where |
 |---|---|---|
-| Headless Monado driver: HMD + controllers + N trackers driven over a socket, for closed-source / runtime-level tests | **working, tested** | [`monado/`](monado/README.md) |
-| Python protocol client, headless OpenXR probe, xdev-space bindings, dataset replay into the runtime | working | `python/ikharness/` |
-| Reference pose datasets: Godot-based exporter for GLB/FBX/VRM models with `.tres` or embedded clips, bone lengths recorded | **working** | [`godot/tools/`](godot/README.md), `ikharness.build_dataset` |
-| Virtual tracker placement (3 to 11 point sets), scoring (per-bone angular error, weighted body score) | **working, tested** | `python/ikharness/trackers.py`, `scoring.py` |
-| Godot harness (GDScript) with a RenIK adapter and a no-IK baseline | **working, tested** | [`godot/harness/`](godot/README.md), `ikharness.run_godot` |
-| BVH and VMD importers | planned (BVH clips also exist as GLB; the VMD sample ships a converted clip) | |
-| Unity harness (C#) | planned | `unity/` |
-| Bone-to-pixel avatar shader + frame capture for closed-source apps | planned | `capture/` |
-| Multi-run comparison reports | planned | |
+| Headless Monado driver: HMD + controllers (poses, triggers, buttons) + N trackers driven over a socket | **working, tested** | [`monado/`](monado/README.md) |
+| Monado patches: square per-eye projection, `XR_HTCX_vive_tracker_interaction` (tracker roles for Godot / Unity), SteamVR plugin trackers | working; plugin tested in a mock vrserver | `monado/patches/` |
+| Reference pose datasets: Godot exporter for GLB/FBX/VRM, retargeting through Godot's importer, pose-diversity frame selection, export as GLB for other engines | **working, tested** | `godot/tools/`, [`docs/datasets.md`](docs/datasets.md) |
+| Virtual trackers (3 to 11 points), T-pose calibration, rest-relative scoring, suites (one number), negative tests, reports | **working, tested** | `python/ikharness/`, [`docs/scoring.md`](docs/scoring.md) |
+| Godot harness with RenIK and Godot built-in IK adapters | **working, tested** | [`godot/harness/`](docs/godot-harness.md) |
+| ShaderMotion: codec, Godot CPU encoder, recorder mesh + shader, decode from screenshots and video | **working, tested** | [`docs/shadermotion.md`](docs/shadermotion.md) |
+| `ikh xr`: a Godot OpenXR application on Monado, calibrated by pulling both triggers in a T-pose, scored from screen pixels | **working, tested** | [`docs/godot-openxr.md`](docs/godot-openxr.md) |
+| Unity harness, avatar and shader; VRChat | blocked (Unity / SteamVR not installed) | [`docs/unity.md`](docs/unity.md) |
+
+Current numbers (default suite, weighted degrees, lower is better): Godot built-in IK 15.25,
+RenIK 19.80, rest pose 69.74; through rendered pixels and the whole OpenXR chain the two
+solvers score 20.6 and 25.6 (the pixel format adds its own floor). Details in
+[`docs/STATUS.md`](docs/STATUS.md), tasks in [`TODO.md`](TODO.md).
 
 ## Quick start
 
 ```sh
 scripts/setup.sh --apt              # venv, pinned deps, Godot 4.7.2, data repos (add --with-monado for the runtime)
 scripts/ikh status
-scripts/ikh suite --ik builtin --build
+scripts/ikh suite --ik builtin --build                                    # the single number
+scripts/ikh xr --dataset out/datasets/vsk_walk.json --tracker-set 6pt     # the whole OpenXR chain, read off the screen (needs --with-monado)
+scripts/ikh report                                                        # compare what has been run
 ```
 
 Full instructions: [docs/getting-started.md](docs/getting-started.md).

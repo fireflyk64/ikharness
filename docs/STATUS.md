@@ -45,6 +45,21 @@ than the result-file numbers above; a screen recording in H.264 changes them by 
 Negative tests: all perturbation ladders (hand offset, head yaw, feet lift, noise; on solved
 poses and on tracker inputs) degrade the score monotonically.
 
+## What changed on 2026-09-30
+
+* The view through the driver is no longer squished: square eyes with a symmetric field of
+  view, the null compositor recommends the eye size, and Monado's SteamVR plugin reports a
+  per-eye render target (it reported the whole side-by-side screen).
+* Controllers carry triggers and buttons over the wire and also answer to the Touch profile;
+  several clients can connect; trackers reach OpenXR applications as HTCX tracker roles.
+* T-pose calibration: reference math, harness mode, and the gesture (T-pose, one second,
+  both triggers) performed remotely.
+* `ikh xr` runs everything unattended and reads the result off the screen or a recording.
+* Cross-checking the readouts against each other exposed three errors that had been inflating
+  scores (exporter rest chain on rigs with extra bones, view point of rigs without eyes,
+  recorder normals under bone stretch) and three RenIK adapter mistakes (arm pole direction,
+  chest target position, no foot placement).
+
 ## Findings worth remembering
 
 * **Scores are rest-relative** (`pose × rest⁻¹` per bone, each rig supplying its own rest) so
