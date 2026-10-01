@@ -43,6 +43,10 @@ if ! grep -q "ikharness: recommend the HMD" "$MONADO_SRC/src/xrt/compositor/null
     echo "== Applying null compositor view size patch"
     git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0002-null-compositor-recommended-view-size.patch"
 fi
+if ! grep -q "OXR_FOR_EACH_HTCX_TRACKER_ROLE" "$MONADO_SRC/src/xrt/state_trackers/oxr/actions/oxr_subaction.h"; then
+    echo "== Applying XR_HTCX_vive_tracker_interaction patch"
+    git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0003-htcx-vive-tracker-interaction.patch"
+fi
 
 [ "$BUILD" = 1 ] || exit 0
 

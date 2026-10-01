@@ -9,6 +9,7 @@ import math
 import os
 
 import pytest
+import xr
 
 from ikharness.protocol import Buttons, IkhClient, Inputs, Pose, PoseFlags, DeviceKind, wait_for_driver
 
@@ -222,3 +223,43 @@ def test_calibration_gesture_reaches_openxr(client):
     # The T-pose head pose is upright and faces stage -Z.
     assert abs(poses["hmd"].position[1] - dataset.skeleton.eye_height) < 1e-6
     assert abs(abs(poses["hmd"].orientation[3]) - 1.0) < 1e-6
+
+
+def quat_from_yaw(angle: float):
+    return (0.0, math.sin(angle / 2.0), 0.0, math.cos(angle / 2.0))
+
+
+def test_trackers_reach_openxr_through_htcx_roles(client):
+    """XR_HTCX_vive_tracker_interaction (monado/patches/0003): the driver's trackers are bound by role.
+
+    This is the path Godot and Unity use for body trackers; XR_MNDX_xdev_space above is Monado-only.
+    """
+    roles = ["waist", "left_foot", "right_foot", "chest", "left_knee", "right_elbow"]
+    sent = {
+        "waist": Pose((0.01, 0.95, -0.02), quat_from_yaw(0.4)),
+        "left_foot": Pose((-0.12, 0.09, 0.05), quat_from_yaw(-0.2)),
+        "right_foot": Pose((0.13, 0.08, -0.07), quat_from_yaw(0.1)),
+        "chest": Pose((0.0, 1.31, 0.03), quat_from_yaw(1.2)),
+        "left_knee": Pose((-0.11, 0.5, 0.1), quat_from_yaw(-0.9)),
+        "right_elbow": Pose((0.45, 1.2, -0.1), quat_from_yaw(2.0)),
+    }
+    client.send_frame(sent, frame_id=950)
+    with HeadlessSession(tracker_roles=roles + ["left_shoulder"]) as s:
+        s.sync_actions()
+        t = s.now()
+        for role in roles:
+            assert s.tracker_interaction_profile(role) == "/interaction_profiles/htc/vive_tracker_htcx", role
+            assert_pose_close(s.locate(s.tracker_spaces[role], t), sent[role], f"htcx {role}")
+        # No device plays this role: no profile, no pose.
+        assert s.tracker_interaction_profile("left_shoulder") == ""
+        loc = s.locate(s.tracker_spaces["left_shoulder"], t)
+        assert not (int(loc.location_flags) & int(xr.SpaceLocationFlags.POSITION_VALID_BIT))
+        paths = s.vive_tracker_paths()
+        assert paths["/user/vive_tracker_htcx/role/waist"] == "/devices/htc/vive_tracker_htcx/ikh-trk-waist"
+        assert len(paths) == 8 and all(p.startswith("/devices/htc/vive_tracker_htcx/ikh-trk-") for p in paths.values())
+        # The trackers move: the pose action follows.
+        client.send_frame({"waist": Pose((0.3, 0.9, 0.2))}, frame_id=951)
+        s.sync_actions()
+        assert_pose_close(s.locate(s.tracker_spaces["waist"], s.now()), Pose((0.3, 0.9, 0.2)), "htcx waist moved")
+        # Hands are unaffected by the extra top level paths.
+        assert s.current_interaction_profile("left").endswith("index_controller")

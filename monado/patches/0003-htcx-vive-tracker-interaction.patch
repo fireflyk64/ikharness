@@ -1,0 +1,449 @@
+diff --git a/src/xrt/auxiliary/bindings/bindings.json b/src/xrt/auxiliary/bindings/bindings.json
+index 462ffbf..1732dc1 100644
+--- a/src/xrt/auxiliary/bindings/bindings.json
++++ b/src/xrt/auxiliary/bindings/bindings.json
+@@ -2446,8 +2446,23 @@
+ 			"monado_device": "XRT_DEVICE_VIVE_TRACKER",
+ 			"extension": "HTCX_vive_tracker_interaction",
+ 			"subaction_paths": [
+-				"/user/hand/left",
+-				"/user/hand/right"
++				"/user/vive_tracker_htcx/role/handheld_object",
++				"/user/vive_tracker_htcx/role/left_foot",
++				"/user/vive_tracker_htcx/role/right_foot",
++				"/user/vive_tracker_htcx/role/left_shoulder",
++				"/user/vive_tracker_htcx/role/right_shoulder",
++				"/user/vive_tracker_htcx/role/left_elbow",
++				"/user/vive_tracker_htcx/role/right_elbow",
++				"/user/vive_tracker_htcx/role/left_knee",
++				"/user/vive_tracker_htcx/role/right_knee",
++				"/user/vive_tracker_htcx/role/waist",
++				"/user/vive_tracker_htcx/role/chest",
++				"/user/vive_tracker_htcx/role/camera",
++				"/user/vive_tracker_htcx/role/keyboard",
++				"/user/vive_tracker_htcx/role/left_wrist",
++				"/user/vive_tracker_htcx/role/right_wrist",
++				"/user/vive_tracker_htcx/role/left_ankle",
++				"/user/vive_tracker_htcx/role/right_ankle"
+ 			],
+ 			"subpaths": {
+ 				"/input/system": {
+diff --git a/src/xrt/state_trackers/oxr/actions/oxr_binding.c b/src/xrt/state_trackers/oxr/actions/oxr_binding.c
+index 7e37180..af96e5d 100644
+--- a/src/xrt/state_trackers/oxr/actions/oxr_binding.c
++++ b/src/xrt/state_trackers/oxr/actions/oxr_binding.c
+@@ -60,6 +60,16 @@ get_subaction_path_from_path(const struct oxr_path_store *store,
+ 		return true;
+ 	}
+ 
++	// ikharness: tracker roles; a role path is followed by '/' or ends the string.
++#define CHECK_TRACKER_ROLE(NAME, NAMECAPS, PATH, LOCALIZED_NAME)                                                      \
++	if (length >= strlen(PATH) && strncmp(PATH, str, strlen(PATH)) == 0 &&                                         \
++	    (str[strlen(PATH)] == '/' || str[strlen(PATH)] == '\0')) {                                                  \
++		*out_subaction_path = OXR_SUB_ACTION_PATH_##NAMECAPS;                                                  \
++		return true;                                                                                           \
++	}
++	OXR_FOR_EACH_HTCX_TRACKER_ROLE_DETAILED(CHECK_TRACKER_ROLE)
++#undef CHECK_TRACKER_ROLE
++
+ 	return false;
+ }
+ 
+@@ -349,6 +359,10 @@ get_subaction_path_str(enum oxr_subaction_path subaction_path)
+ 	case OXR_SUB_ACTION_PATH_LEFT: return "Left";
+ 	case OXR_SUB_ACTION_PATH_RIGHT: return "Right";
+ 	case OXR_SUB_ACTION_PATH_GAMEPAD: return "Gameped";
++#define TRACKER_ROLE_NAME(NAME, NAMECAPS, PATH, LOCALIZED_NAME)                                                       \
++	case OXR_SUB_ACTION_PATH_##NAMECAPS: return LOCALIZED_NAME;
++		OXR_FOR_EACH_HTCX_TRACKER_ROLE_DETAILED(TRACKER_ROLE_NAME)
++#undef TRACKER_ROLE_NAME
+ 	default: return NULL;
+ 	}
+ }
+diff --git a/src/xrt/state_trackers/oxr/actions/oxr_get_state.c b/src/xrt/state_trackers/oxr/actions/oxr_get_state.c
+index b0004d6..eab051a 100644
+--- a/src/xrt/state_trackers/oxr/actions/oxr_get_state.c
++++ b/src/xrt/state_trackers/oxr/actions/oxr_get_state.c
+@@ -77,6 +77,21 @@ get_xr_state_from_action_state_vec2(struct oxr_instance *inst,
+ 	}                                                                                                              \
+ 	if (subaction_paths.gamepad && act_attached->gamepad.current.active) {                                         \
+ 		get_xr_state_from_action_state_##TYPE(sess->sys->inst, &act_attached->gamepad.current, data);          \
++	}                                                                                                              \
++	OXR_FOR_EACH_HTCX_TRACKER_ROLE(OXR_ACTION_GET_FILLER_TRACKER_##TYPE)
++
++// ikharness: the same for the tracker roles, one helper per state type.
++#define OXR_ACTION_GET_FILLER_TRACKER_bool(NAME)                                                                       \
++	if (subaction_paths.NAME && act_attached->NAME.current.active) {                                               \
++		get_xr_state_from_action_state_bool(sess->sys->inst, &act_attached->NAME.current, data);               \
++	}
++#define OXR_ACTION_GET_FILLER_TRACKER_vec1(NAME)                                                                       \
++	if (subaction_paths.NAME && act_attached->NAME.current.active) {                                               \
++		get_xr_state_from_action_state_vec1(sess->sys->inst, &act_attached->NAME.current, data);               \
++	}
++#define OXR_ACTION_GET_FILLER_TRACKER_vec2(NAME)                                                                       \
++	if (subaction_paths.NAME && act_attached->NAME.current.active) {                                               \
++		get_xr_state_from_action_state_vec2(sess->sys->inst, &act_attached->NAME.current, data);               \
+ 	}
+ 
+ /*!
+diff --git a/src/xrt/state_trackers/oxr/actions/oxr_subaction.h b/src/xrt/state_trackers/oxr/actions/oxr_subaction.h
+index a0e0ca2..e9623c0 100644
+--- a/src/xrt/state_trackers/oxr/actions/oxr_subaction.h
++++ b/src/xrt/state_trackers/oxr/actions/oxr_subaction.h
+@@ -25,12 +25,57 @@
+  *
+  * @note Keep this synchronized with OXR_ACTION_GET_FILLER!
+  */
++/*!
++ * ikharness: the roles of XR_HTCX_vive_tracker_interaction as subaction paths, so generic
++ * trackers can be bound like any other top level user path. A tracker takes a role when
++ * the role's name appears in its device name or serial, see oxr_roles_get_htcx_tracker().
++ */
++#define OXR_FOR_EACH_HTCX_TRACKER_ROLE(_)                                                                              \
++	_(htcx_handheld_object)                                                                                \
++	_(htcx_left_foot)                                                                                \
++	_(htcx_right_foot)                                                                                \
++	_(htcx_left_shoulder)                                                                                \
++	_(htcx_right_shoulder)                                                                                \
++	_(htcx_left_elbow)                                                                                \
++	_(htcx_right_elbow)                                                                                \
++	_(htcx_left_knee)                                                                                \
++	_(htcx_right_knee)                                                                                \
++	_(htcx_waist)                                                                                \
++	_(htcx_chest)                                                                                \
++	_(htcx_camera)                                                                                \
++	_(htcx_keyboard)                                                                                \
++	_(htcx_left_wrist)                                                                                \
++	_(htcx_right_wrist)                                                                                \
++	_(htcx_left_ankle)                                                                                \
++	_(htcx_right_ankle)
++
++//! As @ref OXR_FOR_EACH_HTCX_TRACKER_ROLE with capitalized name, path string and localized name.
++#define OXR_FOR_EACH_HTCX_TRACKER_ROLE_DETAILED(_)                                                                     \
++	_(htcx_handheld_object, HTCX_HANDHELD_OBJECT, "/user/vive_tracker_htcx/role/handheld_object", "Tracker (handheld object)") \
++	_(htcx_left_foot, HTCX_LEFT_FOOT, "/user/vive_tracker_htcx/role/left_foot", "Tracker (left foot)") \
++	_(htcx_right_foot, HTCX_RIGHT_FOOT, "/user/vive_tracker_htcx/role/right_foot", "Tracker (right foot)") \
++	_(htcx_left_shoulder, HTCX_LEFT_SHOULDER, "/user/vive_tracker_htcx/role/left_shoulder", "Tracker (left shoulder)") \
++	_(htcx_right_shoulder, HTCX_RIGHT_SHOULDER, "/user/vive_tracker_htcx/role/right_shoulder", "Tracker (right shoulder)") \
++	_(htcx_left_elbow, HTCX_LEFT_ELBOW, "/user/vive_tracker_htcx/role/left_elbow", "Tracker (left elbow)") \
++	_(htcx_right_elbow, HTCX_RIGHT_ELBOW, "/user/vive_tracker_htcx/role/right_elbow", "Tracker (right elbow)") \
++	_(htcx_left_knee, HTCX_LEFT_KNEE, "/user/vive_tracker_htcx/role/left_knee", "Tracker (left knee)") \
++	_(htcx_right_knee, HTCX_RIGHT_KNEE, "/user/vive_tracker_htcx/role/right_knee", "Tracker (right knee)") \
++	_(htcx_waist, HTCX_WAIST, "/user/vive_tracker_htcx/role/waist", "Tracker (waist)") \
++	_(htcx_chest, HTCX_CHEST, "/user/vive_tracker_htcx/role/chest", "Tracker (chest)") \
++	_(htcx_camera, HTCX_CAMERA, "/user/vive_tracker_htcx/role/camera", "Tracker (camera)") \
++	_(htcx_keyboard, HTCX_KEYBOARD, "/user/vive_tracker_htcx/role/keyboard", "Tracker (keyboard)") \
++	_(htcx_left_wrist, HTCX_LEFT_WRIST, "/user/vive_tracker_htcx/role/left_wrist", "Tracker (left wrist)") \
++	_(htcx_right_wrist, HTCX_RIGHT_WRIST, "/user/vive_tracker_htcx/role/right_wrist", "Tracker (right wrist)") \
++	_(htcx_left_ankle, HTCX_LEFT_ANKLE, "/user/vive_tracker_htcx/role/left_ankle", "Tracker (left ankle)") \
++	_(htcx_right_ankle, HTCX_RIGHT_ANKLE, "/user/vive_tracker_htcx/role/right_ankle", "Tracker (right ankle)")
++
+ #define OXR_FOR_EACH_VALID_SUBACTION_PATH(_)                                                                           \
+ 	_(left)                                                                                                        \
+ 	_(right)                                                                                                       \
+ 	_(head)                                                                                                        \
+ 	_(gamepad)                                                                                                     \
+-	_(eyes)
++	_(eyes)                                                                                                        \
++	OXR_FOR_EACH_HTCX_TRACKER_ROLE(_)
+ 
+ 
+ /*!
+@@ -63,7 +108,8 @@
+ 	_(right, RIGHT, "/user/hand/right", "Right")                                                                   \
+ 	_(head, HEAD, "/user/head", "Head")                                                                            \
+ 	_(gamepad, GAMEPAD, "/user/gamepad", "Gamepad")                                                                \
+-	_(eyes, EYES, "/user/eyes_ext", "Eyes")
++	_(eyes, EYES, "/user/eyes_ext", "Eyes")                                                                        \
++	OXR_FOR_EACH_HTCX_TRACKER_ROLE_DETAILED(_)
+ 
+ /*!
+  * Expansion macro (x-macro) that calls the macro you pass for each subaction
+diff --git a/src/xrt/state_trackers/oxr/common/oxr_defines.h b/src/xrt/state_trackers/oxr/common/oxr_defines.h
+index 91eda51..81e481a 100644
+--- a/src/xrt/state_trackers/oxr/common/oxr_defines.h
++++ b/src/xrt/state_trackers/oxr/common/oxr_defines.h
+@@ -58,6 +58,24 @@ enum oxr_subaction_path
+ 	OXR_SUB_ACTION_PATH_RIGHT,
+ 	OXR_SUB_ACTION_PATH_GAMEPAD,
+ 	OXR_SUB_ACTION_PATH_EYES,
++	// ikharness: XR_HTCX_vive_tracker_interaction roles.
++	OXR_SUB_ACTION_PATH_HTCX_HANDHELD_OBJECT,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_FOOT,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_FOOT,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_SHOULDER,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_SHOULDER,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_ELBOW,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_ELBOW,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_KNEE,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_KNEE,
++	OXR_SUB_ACTION_PATH_HTCX_WAIST,
++	OXR_SUB_ACTION_PATH_HTCX_CHEST,
++	OXR_SUB_ACTION_PATH_HTCX_CAMERA,
++	OXR_SUB_ACTION_PATH_HTCX_KEYBOARD,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_WRIST,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_WRIST,
++	OXR_SUB_ACTION_PATH_HTCX_LEFT_ANKLE,
++	OXR_SUB_ACTION_PATH_HTCX_RIGHT_ANKLE,
+ };
+ 
+ /*!
+diff --git a/src/xrt/state_trackers/oxr/extension_support/oxr_extension_support.py b/src/xrt/state_trackers/oxr/extension_support/oxr_extension_support.py
+index e9be594..d67be43 100644
+--- a/src/xrt/state_trackers/oxr/extension_support/oxr_extension_support.py
++++ b/src/xrt/state_trackers/oxr/extension_support/oxr_extension_support.py
+@@ -118,7 +118,7 @@ EXTENSIONS = (
+     ['XR_VARJO_quad_views', 'XRT_FEATURE_OPENXR_VARJO_QUAD_VIEWS'],
+     # Experimental extensions, sorted alphabetically.
+     ['XR_EXTX_overlay', 'XRT_FEATURE_OPENXR_OVERLAY'],
+-    ['XR_HTCX_vive_tracker_interaction', 'ALWAYS_DISABLED'],
++    ['XR_HTCX_vive_tracker_interaction'],  # ikharness: roles as subaction paths, see oxr_roles.h
+     ['XR_MNDX_ball_on_a_stick_controller', 'XRT_FEATURE_OPENXR_INTERACTION_MNDX'],
+     ['XR_MNDX_blubur_s1', 'XRT_FEATURE_OPENXR_INTERACTION_MNDX'],
+     ['XR_MNDX_egl_enable', 'XR_USE_PLATFORM_EGL'],
+diff --git a/src/xrt/state_trackers/oxr/oxr_api_funcs.h b/src/xrt/state_trackers/oxr/oxr_api_funcs.h
+index 0610b2c..373463f 100644
+--- a/src/xrt/state_trackers/oxr/oxr_api_funcs.h
++++ b/src/xrt/state_trackers/oxr/oxr_api_funcs.h
+@@ -60,6 +60,15 @@ XRAPI_ATTR XrResult XRAPI_CALL
+ oxr_xrInitializeLoaderKHR(const XrLoaderInitInfoBaseHeaderKHR *loaderInitInfo);
+ #endif // OXR_HAVE_KHR_loader_init
+ 
++#ifdef OXR_HAVE_HTCX_vive_tracker_interaction
++//! OpenXR API function @ep{xrEnumerateViveTrackerPathsHTCX}
++XRAPI_ATTR XrResult XRAPI_CALL
++oxr_xrEnumerateViveTrackerPathsHTCX(XrInstance instance,
++                                    uint32_t pathCapacityInput,
++                                    uint32_t *pathCountOutput,
++                                    XrViveTrackerPathsHTCX *paths);
++#endif // OXR_HAVE_HTCX_vive_tracker_interaction
++
+ //! OpenXR API function @ep{xrEnumerateInstanceExtensionProperties}
+ XRAPI_ATTR XrResult XRAPI_CALL
+ oxr_xrEnumerateInstanceExtensionProperties(const char *layerName,
+diff --git a/src/xrt/state_trackers/oxr/oxr_api_instance.c b/src/xrt/state_trackers/oxr/oxr_api_instance.c
+index 712344b..ddb10ac 100644
+--- a/src/xrt/state_trackers/oxr/oxr_api_instance.c
++++ b/src/xrt/state_trackers/oxr/oxr_api_instance.c
+@@ -18,6 +18,7 @@
+ #include "oxr_two_call.h"
+ #include "oxr_extension_support.h"
+ #include "oxr_chain.h"
++#include "oxr_roles.h"
+ 
+ #include "oxr_api_funcs.h"
+ #include "oxr_api_verify.h"
+@@ -520,3 +521,80 @@ oxr_xrConvertTimeToWin32PerformanceCounterKHR(XrInstance instance, XrTime time,
+ }
+ 
+ #endif // XR_USE_PLATFORM_WIN32
++
++
++/*
++ *
++ * ikharness: XR_HTCX_vive_tracker_interaction
++ *
++ */
++
++#ifdef OXR_HAVE_HTCX_vive_tracker_interaction
++
++static void
++fill_vive_tracker_paths(XrViveTrackerPathsHTCX *dst, const XrViveTrackerPathsHTCX *src)
++{
++	dst->persistentPath = src->persistentPath;
++	dst->rolePath = src->rolePath;
++}
++
++XRAPI_ATTR XrResult XRAPI_CALL
++oxr_xrEnumerateViveTrackerPathsHTCX(XrInstance instance,
++                                    uint32_t pathCapacityInput,
++                                    uint32_t *pathCountOutput,
++                                    XrViveTrackerPathsHTCX *paths)
++{
++	OXR_TRACE_MARKER();
++
++	struct oxr_instance *inst;
++	struct oxr_logger log;
++	OXR_VERIFY_INSTANCE_AND_INIT_LOG(&log, instance, inst, "xrEnumerateViveTrackerPathsHTCX");
++	OXR_VERIFY_EXTENSION(&log, inst, HTCX_vive_tracker_interaction);
++	OXR_VERIFY_ARG_NOT_NULL(&log, pathCountOutput);
++
++	struct oxr_roles roles;
++	XrResult ret = oxr_roles_init_on_stack(&log, &roles, &inst->system);
++	if (ret != XR_SUCCESS) {
++		return ret;
++	}
++
++	XrViveTrackerPathsHTCX found[32];
++	uint32_t count = 0;
++
++#define ADD_TRACKER(NAME, NAMECAPS, PATH, LOCALIZED_NAME)                                                              \
++	do {                                                                                                           \
++		struct xrt_device *xdev = GET_XDEV_BY_ROLE(&roles, NAME);                                              \
++		if (xdev == NULL || count >= ARRAY_SIZE(found)) {                                                      \
++			break;                                                                                         \
++		}                                                                                                      \
++		/* Persistent path from the serial, restricted to the characters a path may hold. */                  \
++		char persistent[XRT_DEVICE_NAME_LEN + 64];                                                             \
++		int len = snprintf(persistent, sizeof(persistent), "/devices/htc/vive_tracker_htcx/%s", xdev->serial); \
++		for (int i = (int)strlen("/devices/htc/vive_tracker_htcx/"); i < len; i++) {                           \
++			char c = persistent[i];                                                                        \
++			if (c >= 'A' && c <= 'Z') {                                                                    \
++				persistent[i] = (char)(c - 'A' + 'a');                                                 \
++			} else if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-' || c == '_' ||        \
++			             c == '.')) {                                                                      \
++				persistent[i] = '_';                                                                   \
++			}                                                                                              \
++		}                                                                                                      \
++		ret = oxr_path_get_or_create(&log, inst, persistent, strlen(persistent), &found[count].persistentPath); \
++		if (ret != XR_SUCCESS) {                                                                               \
++			return ret;                                                                                    \
++		}                                                                                                      \
++		ret = oxr_path_get_or_create(&log, inst, PATH, strlen(PATH), &found[count].rolePath);                  \
++		if (ret != XR_SUCCESS) {                                                                               \
++			return ret;                                                                                    \
++		}                                                                                                      \
++		count++;                                                                                               \
++	} while (false);
++
++	OXR_FOR_EACH_HTCX_TRACKER_ROLE_DETAILED(ADD_TRACKER)
++#undef ADD_TRACKER
++
++	OXR_TWO_CALL_FILL_IN_HELPER(&log, pathCapacityInput, pathCountOutput, paths, count, fill_vive_tracker_paths, found,
++	                            XR_SUCCESS);
++}
++
++#endif // OXR_HAVE_HTCX_vive_tracker_interaction
+diff --git a/src/xrt/state_trackers/oxr/oxr_api_negotiate.c b/src/xrt/state_trackers/oxr/oxr_api_negotiate.c
+index b6c7a9a..4053ac9 100644
+--- a/src/xrt/state_trackers/oxr/oxr_api_negotiate.c
++++ b/src/xrt/state_trackers/oxr/oxr_api_negotiate.c
+@@ -413,6 +413,10 @@ handle_non_null(struct oxr_instance *inst, struct oxr_logger *log, const char *n
+ 	ENTRY_IF_EXT(xrGetFaceExpressionWeights2FB, FB_face_tracking2);
+ #endif
+ 
++#ifdef OXR_HAVE_HTCX_vive_tracker_interaction
++	ENTRY_IF_EXT(xrEnumerateViveTrackerPathsHTCX, HTCX_vive_tracker_interaction);
++#endif // OXR_HAVE_HTCX_vive_tracker_interaction
++
+ #ifdef OXR_HAVE_MNDX_xdev_space
+ 	ENTRY_IF_EXT(xrCreateXDevListMNDX, MNDX_xdev_space);
+ 	ENTRY_IF_EXT(xrGetXDevListGenerationNumberMNDX, MNDX_xdev_space);
+diff --git a/src/xrt/state_trackers/oxr/oxr_roles.c b/src/xrt/state_trackers/oxr/oxr_roles.c
+index 750feef..d21b373 100644
+--- a/src/xrt/state_trackers/oxr/oxr_roles.c
++++ b/src/xrt/state_trackers/oxr/oxr_roles.c
+@@ -10,6 +10,9 @@
+ #include "oxr_roles.h"
+ #include "oxr_logger.h"
+ 
++#include <ctype.h>
++#include <string.h>
++
+ 
+ XrResult
+ oxr_roles_init_on_stack(struct oxr_logger *log, struct oxr_roles *roles, struct oxr_system *sys)
+@@ -23,3 +26,49 @@ oxr_roles_init_on_stack(struct oxr_logger *log, struct oxr_roles *roles, struct
+ 
+ 	return XR_SUCCESS;
+ }
++
++
++/*
++ *
++ * ikharness: XR_HTCX_vive_tracker_interaction roles.
++ *
++ */
++
++static bool
++is_word_char(char c)
++{
++	return isalnum((unsigned char)c) || c == '_';
++}
++
++//! Does @p haystack contain @p word, not embedded in a longer identifier?
++static bool
++contains_word(const char *haystack, const char *word)
++{
++	const size_t len = strlen(word);
++	for (const char *at = strstr(haystack, word); at != NULL; at = strstr(at + 1, word)) {
++		const bool starts = at == haystack || !is_word_char(at[-1]);
++		const bool ends = !is_word_char(at[len]);
++		if (starts && ends) {
++			return true;
++		}
++	}
++	return false;
++}
++
++struct xrt_device *
++oxr_roles_get_htcx_tracker(const struct oxr_roles *roles, const char *role)
++{
++	struct xrt_system_devices *xsysd = roles->sys->xsysd;
++
++	for (size_t i = 0; i < xsysd->static_xdev_count; i++) {
++		struct xrt_device *xdev = xsysd->static_xdevs[i];
++		if (xdev == NULL || xdev->device_type != XRT_DEVICE_TYPE_GENERIC_TRACKER) {
++			continue;
++		}
++		if (contains_word(xdev->serial, role) || contains_word(xdev->str, role)) {
++			return xdev;
++		}
++	}
++
++	return NULL;
++}
+diff --git a/src/xrt/state_trackers/oxr/oxr_roles.h b/src/xrt/state_trackers/oxr/oxr_roles.h
+index 7569dd5..76f8f86 100644
+--- a/src/xrt/state_trackers/oxr/oxr_roles.h
++++ b/src/xrt/state_trackers/oxr/oxr_roles.h
+@@ -10,6 +10,7 @@
+ #pragma once
+ 
+ #include "oxr_objects.h"
++#include "actions/oxr_subaction.h"
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -102,6 +103,25 @@ MAKE_GET_DYN_ROLES_FN(right)
+ MAKE_GET_DYN_ROLES_FN(gamepad)
+ #undef MAKE_GET_DYN_ROLES_FN
+ 
++/*!
++ * ikharness: the generic tracker that plays an XR_HTCX_vive_tracker_interaction role, or
++ * NULL. @p role is the last element of the role path, e.g. "waist". A tracker has a role
++ * when its serial or device name contains the role as a whole word ("IKH-TRK-waist",
++ * "Tracker (left_foot)").
++ *
++ * @ingroup oxr_main
++ */
++struct xrt_device *
++oxr_roles_get_htcx_tracker(const struct oxr_roles *roles, const char *role);
++
++#define MAKE_GET_HTCX_ROLE_FN(ROLE)                                                                                    \
++	static inline struct xrt_device *get_role_##ROLE(const struct oxr_roles *roles)                                \
++	{                                                                                                              \
++		return oxr_roles_get_htcx_tracker(roles, &(#ROLE)[5]); /* skip "htcx_" */                              \
++	}
++OXR_FOR_EACH_HTCX_TRACKER_ROLE(MAKE_GET_HTCX_ROLE_FN)
++#undef MAKE_GET_HTCX_ROLE_FN
++
+ #define GET_XDEV_BY_ROLE(ROLES, ROLE) (get_role_##ROLE((ROLES)))
+ 
+ 
+@@ -163,6 +183,15 @@ MAKE_GET_DYN_ROLE_PROFILE_FN(right)
+ MAKE_GET_DYN_ROLE_PROFILE_FN(gamepad)
+ #undef MAKE_GET_DYN_ROLES_FN
+ 
++// ikharness: every tracker with a role is presented through the Vive tracker profile.
++#define MAKE_GET_HTCX_ROLE_PROFILE_FN(ROLE)                                                                            \
++	static inline enum xrt_device_name get_role_profile_##ROLE(const struct oxr_roles *roles)                      \
++	{                                                                                                              \
++		return get_role_##ROLE(roles) != NULL ? XRT_DEVICE_VIVE_TRACKER : XRT_DEVICE_INVALID;                  \
++	}
++OXR_FOR_EACH_HTCX_TRACKER_ROLE(MAKE_GET_HTCX_ROLE_PROFILE_FN)
++#undef MAKE_GET_HTCX_ROLE_PROFILE_FN
++
+ #define GET_PROFILE_NAME_BY_ROLE(ROLES, ROLE) (get_role_profile_##ROLE((ROLES)))
+ 
+ 

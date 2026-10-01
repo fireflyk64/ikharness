@@ -5,17 +5,22 @@
 # Godot's built-in default map has no Valve Index profile, and an editor build saves that
 # default into the project when the file is missing; this one is small and explicit.
 # Actions use Godot's standard names (default_pose, aim_pose, grip_pose, trigger, ...), so
-# XRController3D works as usual.
+# XRController3D works as usual. Body trackers are bound through the Vive tracker profile of
+# XR_HTCX_vive_tracker_interaction (tracker names "/user/vive_tracker_htcx/role/<role>").
 extends SceneTree
 
 const HANDS := ["/user/hand/left", "/user/hand/right"]
+# Body trackers through XR_HTCX_vive_tracker_interaction (roles the harness uses).
+const TRACKER_ROLES := ["waist", "chest", "left_foot", "right_foot", "left_knee", "right_knee", "left_elbow", "right_elbow",
+	"left_shoulder", "right_shoulder"]
+const TRACKER_PREFIX := "/user/vive_tracker_htcx/role/"
 
-func _action(set: OpenXRActionSet, name: String, label: String, type: int) -> OpenXRAction:
+func _action(set: OpenXRActionSet, name: String, label: String, type: int, paths: Array = HANDS) -> OpenXRAction:
 	var a := OpenXRAction.new()
 	a.resource_name = name
 	a.localized_name = label
 	a.action_type = type
-	a.toplevel_paths = PackedStringArray(HANDS)
+	a.toplevel_paths = PackedStringArray(paths)
 	set.add_action(a)
 	return a
 
@@ -30,8 +35,11 @@ func _init():
 	set.resource_name = "ikharness"
 	set.localized_name = "IK harness"
 	map.add_action_set(set)
+	var tracker_paths := []
+	for role in TRACKER_ROLES:
+		tracker_paths.append(TRACKER_PREFIX + role)
 	var a := {
-		"default_pose": _action(set, "default_pose", "Default pose", OpenXRAction.OPENXR_ACTION_POSE),
+		"default_pose": _action(set, "default_pose", "Default pose", OpenXRAction.OPENXR_ACTION_POSE, HANDS + tracker_paths),
 		"aim_pose": _action(set, "aim_pose", "Aim pose", OpenXRAction.OPENXR_ACTION_POSE),
 		"grip_pose": _action(set, "grip_pose", "Grip pose", OpenXRAction.OPENXR_ACTION_POSE),
 		"trigger": _action(set, "trigger", "Trigger", OpenXRAction.OPENXR_ACTION_FLOAT),
@@ -66,6 +74,18 @@ func _init():
 				bindings.append(b)
 		ip.bindings = bindings
 		map.add_interaction_profile(ip)
+	# Vive trackers: the default pose of every role (the runtime skips this profile when it
+	# lacks the extension).
+	var trackers := OpenXRInteractionProfile.new()
+	trackers.interaction_profile_path = "/interaction_profiles/htc/vive_tracker_htcx"
+	var tracker_bindings := []
+	for path in tracker_paths:
+		var b := OpenXRIPBinding.new()
+		b.action = a["default_pose"]
+		b.binding_path = path + "/input/grip/pose"
+		tracker_bindings.append(b)
+	trackers.bindings = tracker_bindings
+	map.add_interaction_profile(trackers)
 	var err := ResourceSaver.save(map, out[0])
 	print("make_action_map: ", out[0], " -> ", error_string(err))
 	quit(0 if err == OK else 1)

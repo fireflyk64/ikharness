@@ -44,9 +44,17 @@ Godot project receives neither hand poses nor buttons.
 `python/ikharness/service.py` (`MonadoService`) starts and stops a guarded service from
 Python with a temporary config (eye size, tracker list); `ikh xr` uses it.
 
+## Trackers as OpenXR tracker roles
+
+With `monado/patches/0003-htcx-vive-tracker-interaction.patch` (applied by
+`setup_monado.sh`) the runtime offers `XR_HTCX_vive_tracker_interaction`: each tracker
+whose role name is one of the extension's roles (waist, chest, left/right foot, knee,
+elbow, shoulder, wrist, ankle, camera, keyboard, handheld_object) is bound at
+`/user/vive_tracker_htcx/role/<role>` with the Vive tracker profile. That is how Godot and
+Unity's OpenXR plugin find body trackers. `XR_MNDX_xdev_space` keeps working for clients
+that want every device regardless of role. Check: `test_trackers_reach_openxr_through_htcx_roles`.
+Details in [godot-openxr.md](godot-openxr.md).
+
 ## Open items
 
-* No `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer: trackers reach OpenXR apps
-  only through Monado's `XR_MNDX_xdev_space`. Godot and Unity's OpenXR plugins expect HTCX.
-  See [godot-openxr.md](godot-openxr.md).
 * The SteamVR plugin forwards only HMD and controllers upstream.

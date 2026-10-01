@@ -4,7 +4,7 @@
 resource_name = "default_pose"
 localized_name = "Default pose"
 action_type = 3
-toplevel_paths = PackedStringArray("/user/hand/left", "/user/hand/right")
+toplevel_paths = PackedStringArray("/user/hand/left", "/user/hand/right", "/user/vive_tracker_htcx/role/waist", "/user/vive_tracker_htcx/role/chest", "/user/vive_tracker_htcx/role/left_foot", "/user/vive_tracker_htcx/role/right_foot", "/user/vive_tracker_htcx/role/left_knee", "/user/vive_tracker_htcx/role/right_knee", "/user/vive_tracker_htcx/role/left_elbow", "/user/vive_tracker_htcx/role/right_elbow", "/user/vive_tracker_htcx/role/left_shoulder", "/user/vive_tracker_htcx/role/right_shoulder")
 
 [sub_resource type="OpenXRAction" id="OpenXRAction_e2b1q"]
 resource_name = "aim_pose"
@@ -209,6 +209,50 @@ binding_path = "/user/hand/right/input/menu/click"
 interaction_profile_path = "/interaction_profiles/khr/simple_controller"
 bindings = [SubResource("OpenXRIPBinding_tpgks"), SubResource("OpenXRIPBinding_olld5"), SubResource("OpenXRIPBinding_c3t0c"), SubResource("OpenXRIPBinding_nde7y"), SubResource("OpenXRIPBinding_nyg8c"), SubResource("OpenXRIPBinding_ooj7d"), SubResource("OpenXRIPBinding_vcps4"), SubResource("OpenXRIPBinding_vk4og"), SubResource("OpenXRIPBinding_ntrjp"), SubResource("OpenXRIPBinding_28gpi"), SubResource("OpenXRIPBinding_3s5cf"), SubResource("OpenXRIPBinding_uyxu8")]
 
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_lpcb1"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/waist/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_j7tfb"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/chest/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_jf28w"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/left_foot/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_i5y3a"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/right_foot/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_7ln7n"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/left_knee/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_oxc48"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/right_knee/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_175a0"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/left_elbow/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_mekhr"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/right_elbow/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_u8h3r"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/left_shoulder/input/grip/pose"
+
+[sub_resource type="OpenXRIPBinding" id="OpenXRIPBinding_lrn14"]
+action = SubResource("OpenXRAction_sdwcp")
+binding_path = "/user/vive_tracker_htcx/role/right_shoulder/input/grip/pose"
+
+[sub_resource type="OpenXRInteractionProfile" id="OpenXRInteractionProfile_84hmb"]
+interaction_profile_path = "/interaction_profiles/htc/vive_tracker_htcx"
+bindings = [SubResource("OpenXRIPBinding_lpcb1"), SubResource("OpenXRIPBinding_j7tfb"), SubResource("OpenXRIPBinding_jf28w"), SubResource("OpenXRIPBinding_i5y3a"), SubResource("OpenXRIPBinding_7ln7n"), SubResource("OpenXRIPBinding_oxc48"), SubResource("OpenXRIPBinding_175a0"), SubResource("OpenXRIPBinding_mekhr"), SubResource("OpenXRIPBinding_u8h3r"), SubResource("OpenXRIPBinding_lrn14")]
+
 [resource]
 action_sets = [SubResource("OpenXRActionSet_x0kon")]
-interaction_profiles = [SubResource("OpenXRInteractionProfile_j8u6m"), SubResource("OpenXRInteractionProfile_vtdap"), SubResource("OpenXRInteractionProfile_6r1rt")]
+interaction_profiles = [SubResource("OpenXRInteractionProfile_j8u6m"), SubResource("OpenXRInteractionProfile_vtdap"), SubResource("OpenXRInteractionProfile_6r1rt"), SubResource("OpenXRInteractionProfile_84hmb")]

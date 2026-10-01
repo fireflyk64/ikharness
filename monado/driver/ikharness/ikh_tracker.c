@@ -91,6 +91,22 @@ ikh_tracker_get_tracked_pose(struct xrt_device *xdev,
 	return XRT_SUCCESS;
 }
 
+// The Vive tracker profile of XR_HTCX_vive_tracker_interaction binds the generic
+// XRT_DEVICE_VIVE_TRACKER; tell the OpenXR layer this device can stand in for it.
+static struct xrt_binding_input_pair tracker_to_vive_tracker_inputs[1] = {
+    {XRT_INPUT_VIVE_TRACKER_GRIP_POSE, XRT_INPUT_VIVE_TRACKER_GRIP_POSE},
+};
+
+static struct xrt_binding_profile tracker_binding_profiles[1] = {
+    {
+        .name = XRT_DEVICE_VIVE_TRACKER,
+        .inputs = tracker_to_vive_tracker_inputs,
+        .input_count = ARRAY_SIZE(tracker_to_vive_tracker_inputs),
+        .outputs = NULL,
+        .output_count = 0,
+    },
+};
+
 struct xrt_device *
 ikh_tracker_create(struct ikh_hub *hub, uint32_t index)
 {
@@ -111,6 +127,8 @@ ikh_tracker_create(struct ikh_hub *hub, uint32_t index)
 
 	t->base.inputs[IKH_TRACKER_INPUT_GENERIC_POSE].name = XRT_INPUT_GENERIC_TRACKER_POSE;
 	t->base.inputs[IKH_TRACKER_INPUT_GRIP_POSE].name = XRT_INPUT_VIVE_TRACKER_GRIP_POSE;
+	t->base.binding_profiles = tracker_binding_profiles;
+	t->base.binding_profile_count = ARRAY_SIZE(tracker_binding_profiles);
 
 	snprintf(t->base.str, XRT_DEVICE_NAME_LEN, "IK Harness Tracker (%s)", hub->descs[index].role);
 	snprintf(t->base.serial, XRT_DEVICE_NAME_LEN, "%s", hub->descs[index].serial);

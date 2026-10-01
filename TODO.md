@@ -87,8 +87,10 @@ test it, and how to see whether it is working (the feedback loop).
       `RenIKPlacement3D` for 3/4-point sets (needs a floor collider). (`docs/godot-harness.md`)
 - [x] Godot as OpenXR client through Monado (goal 5): head, hands and triggers through
       OpenXRInterface, body trackers through the driver's state query. (`docs/godot-openxr.md`)
-- [ ] `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer (marked ALWAYS_DISABLED
-      upstream), so body trackers reach Godot through OpenXR and the side channel can go.
+- [x] `XR_HTCX_vive_tracker_interaction` in Monado's OpenXR layer (`monado/patches/0003`,
+      upstream marks it ALWAYS_DISABLED): the 17 tracker roles as subaction paths, roles taken
+      from device names, `xrEnumerateViveTrackerPathsHTCX`. The Godot demo now reads body
+      trackers through OpenXR; the driver side channel is the fallback (`--trackers`).
 - [ ] Godot as preprocessor (goal 5): `ikh dataset export-retargeted` writes retargeted
       animations (Godot `.res`, glTF) with the standard rest, for OpenXR/Unity consumers.
 - [x] ShaderMotion reference codec in Python (goal 6, step 1): colors ↔ numbers, hips float

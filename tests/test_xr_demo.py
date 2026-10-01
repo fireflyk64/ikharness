@@ -31,6 +31,8 @@ def test_action_map_has_the_profiles_the_driver_offers():
     for profile in ("valve/index_controller", "oculus/touch_controller", "khr/simple_controller"):
         assert f"/interaction_profiles/{profile}" in text
     assert "/user/hand/left/input/trigger/value" in text
+    assert "/interaction_profiles/htc/vive_tracker_htcx" in text
+    assert "/user/vive_tracker_htcx/role/left_foot/input/grip/pose" in text
 
 
 @pytest.fixture(scope="module")
@@ -49,6 +51,8 @@ def test_calibration_gesture_reaches_the_demo(xr_run):
     assert np.allclose(cal["root"]["position"], [0, 0, 0], atol=1e-4)
     assert abs(cal["height_ratio"] - 1.0) < 1e-3
     assert sorted(cal["roles"]) == sorted(["head", "left_hand", "right_hand", "waist", "left_foot", "right_foot"])
+    # Body trackers arrive through OpenXR (XR_HTCX_vive_tracker_interaction roles), not the side channel.
+    assert info["body_source"] == {"waist": "openxr", "left_foot": "openxr", "right_foot": "openxr"}
 
 
 def test_screen_frames_hold_the_slots_and_the_spectator_view(xr_run):
@@ -89,7 +93,9 @@ def test_recording_of_the_screen_gives_the_same_poses(xr_run):
 
 def test_wrong_trackers_score_worse_through_openxr(xr_run, tmp_path):
     _, report, _ = xr_run
+    # This run also covers the fallback: body trackers from the driver's state query.
     bad, info = run(DATA / "mini_walk.json", "6pt", "builtin", tmp_path, port=PORT, perturb="hands_swap:1",
-                    log=lambda *_: None)
+                    trackers="driver", log=lambda *_: None)
     assert info["perturbation"] == "hands_swap:1"
+    assert set(info["body_source"].values()) == {"driver"}
     assert bad.body_score_deg > report.body_score_deg + 5.0

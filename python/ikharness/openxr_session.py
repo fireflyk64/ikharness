@@ -32,6 +32,18 @@ class _timespec(C.Structure):
 
 _PFN_ConvertTimespec = C.CFUNCTYPE(C.c_int, xr.Instance, C.POINTER(_timespec), C.POINTER(C.c_int64))
 
+HTCX_EXT = "XR_HTCX_vive_tracker_interaction"
+HTCX_PROFILE = "/interaction_profiles/htc/vive_tracker_htcx"
+HTCX_ROLE_PREFIX = "/user/vive_tracker_htcx/role/"
+_TYPE_VIVE_TRACKER_PATHS_HTCX = 1000103000
+
+
+class _ViveTrackerPaths(C.Structure):
+    _fields_ = [("type", C.c_int32), ("next", C.c_void_p), ("persistent_path", C.c_uint64), ("role_path", C.c_uint64)]
+
+
+_PFN_EnumerateViveTrackerPaths = C.CFUNCTYPE(C.c_int32, xr.Instance, C.c_uint32, C.POINTER(C.c_uint32), C.POINTER(_ViveTrackerPaths))
+
 
 def identity_pose() -> xr.Posef:
     return xr.Posef(orientation=xr.Quaternionf(0, 0, 0, 1), position=xr.Vector3f(0, 0, 0))
@@ -59,7 +71,16 @@ class HeadlessSession:
             "/interaction_profiles/khr/simple_controller",
         ),
         app_name: str = "ikharness",
+        tracker_roles: Sequence[str] = (),
     ):
+        # tracker_roles: roles of XR_HTCX_vive_tracker_interaction ("waist", "left_foot", ...)
+        # to bind a pose action to; the extension is enabled automatically.
+        self.tracker_roles = list(tracker_roles)
+        if self.tracker_roles and HTCX_EXT not in extra_extensions:
+            extra_extensions = list(extra_extensions) + [HTCX_EXT]
+        self.tracker_action = None
+        self.tracker_paths: Dict[str, xr.Path] = {}
+        self.tracker_spaces: Dict[str, xr.Space] = {}
         self.extra_extensions = list(extra_extensions)
         self.hand_profiles = list(hand_profiles)
         self.app_name = app_name
@@ -127,7 +148,7 @@ class HeadlessSession:
                 except Exception:
                     pass
         finally:
-            for s in list(self.grip_spaces.values()) + [self.stage, self.local, self.view]:
+            for s in list(self.grip_spaces.values()) + list(self.tracker_spaces.values()) + [self.stage, self.local, self.view]:
                 if s is not None:
                     try:
                         xr.destroy_space(s)
@@ -221,6 +242,33 @@ class HeadlessSession:
                 ),
             )
 
+        if self.tracker_roles:
+            for role in self.tracker_roles:
+                self.tracker_paths[role] = xr.string_to_path(self.instance, HTCX_ROLE_PREFIX + role)
+            n = len(self.tracker_roles)
+            self.tracker_action = xr.create_action(
+                self.action_set,
+                xr.ActionCreateInfo(
+                    action_type=xr.ActionType.POSE_INPUT,
+                    action_name="tracker_pose",
+                    localized_action_name="Tracker Pose",
+                    count_subaction_paths=n,
+                    subaction_paths=(xr.Path * n)(*[self.tracker_paths[r] for r in self.tracker_roles]),
+                ),
+            )
+            bindings = (xr.ActionSuggestedBinding * n)(*[
+                xr.ActionSuggestedBinding(action=self.tracker_action,
+                                          binding=xr.string_to_path(self.instance, f"{HTCX_ROLE_PREFIX}{r}/input/grip/pose"))
+                for r in self.tracker_roles])
+            xr.suggest_interaction_profile_bindings(
+                self.instance,
+                xr.InteractionProfileSuggestedBinding(
+                    interaction_profile=xr.string_to_path(self.instance, HTCX_PROFILE),
+                    count_suggested_bindings=n,
+                    suggested_bindings=bindings,
+                ),
+            )
+
     def _attach_actions(self) -> None:
         sets = (xr.ActionSet * 1)(self.action_set)
         xr.attach_session_action_sets(self.session, xr.SessionActionSetsAttachInfo(count_action_sets=1, action_sets=sets))
@@ -228,6 +276,11 @@ class HeadlessSession:
             self.grip_spaces[hand] = xr.create_action_space(
                 self.session,
                 xr.ActionSpaceCreateInfo(action=self.grip_action, subaction_path=path, pose_in_action_space=identity_pose()),
+            )
+        for role, path in self.tracker_paths.items():
+            self.tracker_spaces[role] = xr.create_action_space(
+                self.session,
+                xr.ActionSpaceCreateInfo(action=self.tracker_action, subaction_path=path, pose_in_action_space=identity_pose()),
             )
         self._active_sets = (xr.ActiveActionSet * 1)(xr.ActiveActionSet(action_set=self.action_set, subaction_path=xr.NULL_PATH))
 
@@ -255,6 +308,28 @@ class HeadlessSession:
         if state.interaction_profile == xr.NULL_PATH:
             return ""
         return xr.path_to_string(self.instance, state.interaction_profile)
+
+    def tracker_interaction_profile(self, role: str) -> str:
+        state = xr.get_current_interaction_profile(self.session, self.tracker_paths[role])
+        if state.interaction_profile == xr.NULL_PATH:
+            return ""
+        return xr.path_to_string(self.instance, state.interaction_profile)
+
+    def vive_tracker_paths(self) -> Dict[str, str]:
+        """role path -> persistent path of every tracker the runtime reports (xrEnumerateViveTrackerPathsHTCX)."""
+        fn = C.cast(xr.get_instance_proc_addr(self.instance, "xrEnumerateViveTrackerPathsHTCX"), _PFN_EnumerateViveTrackerPaths)
+        count = C.c_uint32(0)
+        exc = xr.check_result(xr.Result(fn(self.instance, 0, C.byref(count), None)), "xrEnumerateViveTrackerPathsHTCX")
+        if exc.is_exception():
+            raise exc
+        items = (_ViveTrackerPaths * count.value)()
+        for item in items:
+            item.type = _TYPE_VIVE_TRACKER_PATHS_HTCX
+        exc = xr.check_result(xr.Result(fn(self.instance, count.value, C.byref(count), items)), "xrEnumerateViveTrackerPathsHTCX")
+        if exc.is_exception():
+            raise exc
+        return {xr.path_to_string(self.instance, i.role_path): xr.path_to_string(self.instance, i.persistent_path)
+                for i in items[: count.value]}
 
     # -- locating ----------------------------------------------------------------
 

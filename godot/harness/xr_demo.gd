@@ -4,10 +4,13 @@
 #
 #   godot --path godot/harness --xr-mode on --rendering-driver opengl3 -s xr_demo.gd -- \
 #       --skeleton /abs/dataset.json [--ik builtin|renik|none] [--roles head,left_hand,...]
-#       [--port 4343] [--window 640x360] [--spectator 1] [--status /abs/status.json] [--quit-after N]
+#       [--trackers auto|openxr|driver] [--port 4343] [--window 640x360] [--spectator 1]
+#       [--status /abs/status.json] [--quit-after N]
 #
-# Head, hands and triggers come through OpenXR. Body trackers come from the driver's state
-# query (driver_client.gd) because Monado has no XR_HTCX_vive_tracker_interaction.
+# Head, hands and triggers come through OpenXR. Body trackers come through OpenXR too when
+# the runtime has XR_HTCX_vive_tracker_interaction (Monado with monado/patches/0003, SteamVR):
+# trackers named /user/vive_tracker_htcx/role/<role>. Otherwise, or with --trackers driver,
+# they come from the ikharness driver's state query (driver_client.gd).
 # Calibration: stand in the avatar's rest pose (T-pose) and pull both triggers.
 #
 # The desktop window shows a spectator view with the ShaderMotion slots of the avatar's pose
@@ -21,13 +24,15 @@ const ShaderMotionEncoder := preload("res://shadermotion_encoder.gd")
 const Rig := preload("res://rig.gd")
 const DriverClient := preload("res://driver_client.gd")
 
-const BODY_ROLES := ["waist", "chest", "left_foot", "right_foot", "left_knee", "right_knee", "left_elbow", "right_elbow"]
+const BODY_ROLES := ["waist", "chest", "left_foot", "right_foot", "left_knee", "right_knee", "left_elbow", "right_elbow",
+	"left_shoulder", "right_shoulder"]
+const HTCX_PREFIX := "/user/vive_tracker_htcx/role/"
 const LAYER_WORLD := 1
 const LAYER_HEAD := 2
 const TRIGGER_PRESSED := 0.75
 
 var opts := {"skeleton": "", "ik": "builtin", "roles": "", "port": 4343, "host": "127.0.0.1", "status": "",
-	"window": "640x360", "spectator": 1, "quit-after": 0}
+	"window": "640x360", "spectator": 1, "quit-after": 0, "trackers": "auto"}
 
 var xr: XRInterface
 var world: Node3D
@@ -48,6 +53,7 @@ var triggers_were_down := false
 var last_status := ""
 var debug := OS.get_environment("IKH_DEBUG") != ""
 var debug_last := {}
+var body_source := {}    # role -> "openxr" or "driver", where its pose came from this frame
 
 func _init():
 	_parse_args()
@@ -227,9 +233,19 @@ func tracker_poses() -> Dictionary:
 		var c: XRController3D = controllers[hand]
 		if c.get_is_active() and c.get_has_tracking_data():
 			out[hand] = c.global_transform
+	var mode := String(opts["trackers"])
+	body_source = {}
 	for role in BODY_ROLES:
-		if driver.state.has(role):
+		if mode != "driver":
+			var t := XRServer.get_tracker(StringName(HTCX_PREFIX + role)) as XRPositionalTracker
+			var pose: XRPose = t.get_pose(&"default") if t != null and t.has_pose(&"default") else null
+			if pose != null and pose.has_tracking_data:
+				out[role] = pose.get_adjusted_transform()
+				body_source[role] = "openxr"
+				continue
+		if mode != "openxr" and driver.state.has(role):
 			out[role] = driver.state[role]
+			body_source[role] = "driver"
 	return out
 
 func wanted_roles(poses: Dictionary) -> Array:
@@ -342,6 +358,7 @@ func _write_status(poses: Dictionary) -> void:
 		"roles": roles,
 		"tracked": poses.keys(),
 		"driver": driver.is_connected_to_driver(),
+		"body_source": body_source,
 		"profile": left.profile if left != null else "",
 		"window": [get_root().size.x, get_root().size.y],
 		"fps": int(Engine.get_frames_per_second()),

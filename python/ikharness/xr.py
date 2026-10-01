@@ -51,13 +51,14 @@ class XRDemo:
 
     def __init__(self, service: MonadoService, skeleton_path: Path, roles, ik: str = "builtin",
                  window: Tuple[int, int] = (640, 360), log_path: Optional[Path] = None, spectator: bool = True,
-                 max_rss_mb: int = 2500):
+                 max_rss_mb: int = 2500, trackers: str = "auto"):
         self.service = service
         self.skeleton_path = Path(skeleton_path)
         self.roles = list(roles)
         self.ik = ik
         self.window = window
         self.spectator = spectator
+        self.trackers = trackers
         self.log_path = Path(log_path) if log_path else ROOT / "out" / "xr-demo.log"
         self.max_rss_mb = max_rss_mb
         self.proc: Optional[subprocess.Popen] = None
@@ -84,7 +85,7 @@ class XRDemo:
                "-s", "xr_demo.gd", "--",
                "--skeleton", str(self.skeleton_path.resolve()), "--ik", self.ik, "--roles", ",".join(self.roles),
                "--port", str(self.service.port), "--window", f"{w}x{h}", "--status", str(self.status_path),
-               "--spectator", "1" if self.spectator else "0"]
+               "--spectator", "1" if self.spectator else "0", "--trackers", self.trackers]
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         self._log = open(self.log_path, "w")
         env = self.service.client_env({"LP_NUM_THREADS": os.environ.get("LP_NUM_THREADS", "1")})
@@ -161,7 +162,7 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
         frames: int = 0, eye: int = 256, window: Tuple[int, int] = (640, 360), capture: str = "fbdir",
         calibrate_hold: float = 1.0, min_dwell: float = 0.3, settle_timeout: float = 5.0, port: int = 4343,
         spectator: bool = True, perturb: Optional[str] = None, video: Optional[str] = None, video_fps: int = 20,
-        video_hold: float = 0.2, log=print):
+        video_hold: float = 0.2, trackers: str = "auto", log=print):
     """Returns (report through pixels, info dict). Frames are saved as ``frame_<index>.png``.
 
     ``perturb`` is ``name:magnitude[:seed]`` (see :mod:`ikharness.negative`), applied to the
@@ -171,6 +172,10 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
     demo's display is then also recorded with ``ffmpeg -f x11grab`` during the replay, every
     pose is held ``video_hold`` seconds longer, and the poses are decoded a second time from
     the recording (``info["video"]``), which shows what a stream of the screen would give.
+
+    ``trackers`` says where the demo takes body trackers from: ``openxr`` (the Vive tracker
+    roles of XR_HTCX_vive_tracker_interaction), ``driver`` (the driver's state query), or
+    ``auto`` (OpenXR when it delivers a pose, else the driver).
     """
     from .shadermotion.readout import decode_image, roundtrip_dataset
 
@@ -201,7 +206,7 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
     with MonadoService(port=port, eye=(eye, eye), trackers=body or ["waist"],
                        log_path=Path(out_dir) / f"{stem}.monado.log") as service:
         with service.connect() as client, \
-                XRDemo(service, dataset_path, roles, ik=ik, window=window, spectator=spectator,
+                XRDemo(service, dataset_path, roles, ik=ik, window=window, spectator=spectator, trackers=trackers,
                        log_path=Path(out_dir) / f"{stem}.demo.log") as demo:
             used = {ROLE_TO_DEVICE.get(r, r) for r in roles}
             unused = {d.name: Pose.disconnected() for d in client.devices if d.name not in used}
@@ -216,7 +221,9 @@ def run(dataset_path: Path, tracker_set: str = "6pt", ik: str = "builtin", out_d
             run_calibration_gesture(client, tpose, hold=calibrate_hold, log=log)
             st = demo.wait(lambda s: s.get("calibrations", 0) >= 1, "the T-pose calibration", timeout=30.0)
             info["calibration"] = {"root": st.get("root"), "height_ratio": st.get("height_ratio"), "roles": st.get("roles")}
-            log(f"xr: calibrated, root {st.get('root')}, roles {','.join(st.get('roles', []))}")
+            info["body_source"] = st.get("body_source", {})
+            sources = sorted(set(info["body_source"].values())) or ["none"]
+            log(f"xr: calibrated, root {st.get('root')}, roles {','.join(st.get('roles', []))}; body trackers via {'/'.join(sources)}")
 
             grabber = demo.grabber(capture)
             decoded: List[Optional[object]] = []
@@ -294,11 +301,14 @@ def main(argv=None) -> int:
     p.add_argument("--video", default=None, metavar="PRESET",
                    help="also record the display with ffmpeg (preset from ikharness.video, e.g. x264-crf23) and score from the recording")
     p.add_argument("--video-fps", type=int, default=20)
+    p.add_argument("--trackers", default="auto", choices=["auto", "openxr", "driver"],
+                   help="where the demo reads body trackers: XR_HTCX_vive_tracker_interaction, the driver's state query, or whichever works")
     args = p.parse_args(argv)
     w, h = (int(v) for v in args.window.split("x"))
     report, info = run(Path(args.dataset), args.tracker_set, args.ik, Path(args.out_dir), args.frames, args.eye, (w, h),
                        args.capture, args.calibrate_hold, args.min_dwell, port=args.port, spectator=not args.no_spectator,
-                       perturb=args.perturb, video=args.video, video_fps=args.video_fps)
+                       perturb=args.perturb, video=args.video, video_fps=args.video_fps,
+                       trackers=args.trackers)
     print(report.summary())
     print(f"xr: {info['frames']} frames off the screen ({info['capture']}), {info['seconds_per_frame']:.2f} s/frame, "
           f"{info['unstable_frames']} unstable; pixels vs raw reference {info['raw_reference_weighted_deg']:.2f} deg weighted; "

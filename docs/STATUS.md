@@ -74,5 +74,5 @@ poses and on tracker inputs) degrade the score monotonically.
   on a straight profile leg); a Unity export for our own avatar would remove that.
 * The hips handedness convention for Unity-encoded frames is inferred (limbs check out on a
   genuine frame; a frame of a known pose would settle it).
-* Trackers reach OpenXR apps only through Monado's `XR_MNDX_xdev_space`; Godot and Unity
-  expect `XR_HTCX_vive_tracker_interaction`, which Monado lacks.
+* `XR_HTCX_vive_tracker_interaction` exists only in our patched Monado (patch 0003, roles
+  assigned by device name); upstream Monado still lacks it.
