@@ -55,6 +55,39 @@ Unity's OpenXR plugin find body trackers. `XR_MNDX_xdev_space` keeps working for
 that want every device regardless of role. Check: `test_trackers_reach_openxr_through_htcx_roles`.
 Details in [godot-openxr.md](godot-openxr.md).
 
+## SteamVR plugin
+
+Monado's plugin for SteamVR (`driver_monado.so`, installed under
+`~/.local/monado-ikharness/share/steamvr-monado`, registered with
+`vrpathreg adddriver`) runs the whole runtime, including this driver, inside SteamVR's
+`vrserver`. `monado/patches/0004-steamvr-plugin-trackers-and-eye-size.patch` changes two
+things in it:
+
+* **Per-eye render target size.** Upstream answers `GetRecommendedRenderTargetSize` with the
+  size of the whole screen, which holds both eyes side by side: 2867×1433 per eye for a
+  square field of view. SteamVR then renders every eye image twice as wide as its frustum,
+  and every mirror view shows it stretched. Together with the driver's old portrait eyes
+  this is the likely cause of the "squished" view reported on 2026-09-30. Now 1433×1433
+  (1024² × the plugin's 140 % supersampling), aspect equal to the field of view.
+* **Generic trackers.** Upstream forwards the HMD and two controllers. Every generic tracker
+  is now added as `TrackedDeviceClass_GenericTracker`, with the role from its name as
+  controller type (`vive_tracker_waist`, ...) and in SteamVR's `trackers` settings
+  (`/devices/monado/IKH-TRK-waist` → `TrackerRole_Waist`), poses updated every frame,
+  dropped trackers reported as disconnected. `IKH_STEAMVR_TRACKERS=0` restores the old
+  behaviour.
+
+SteamVR is not installed on the development machine, so this is tested against
+`monado/tests/steamvr_mock_host.cpp`: a small stand-in for `vrserver` that loads the plugin,
+activates the devices it adds and records properties, poses and the HMD's optics
+(`tests/test_steamvr_plugin.py`, 2 s). What that cannot show is SteamVR's own behaviour
+(direct mode on a headless machine, its compositor); try it with
+`STEAMVR_EMULATE_INDEX_CONTROLLER=1` if a game wants Index controllers.
+
+```sh
+g++ -std=c++17 -I ~/dev/monado/src/external/openvr_includes monado/tests/steamvr_mock_host.cpp -o out/steamvr_mock_host -ldl -lpthread
+IKH_PORT=4363 out/steamvr_mock_host ~/.local/monado-ikharness/share/steamvr-monado/bin/linux64/driver_monado.so 15 < /dev/null
+```
+
 ## Open items
 
-* The SteamVR plugin forwards only HMD and controllers upstream.
+* The SteamVR plugin changes are untested inside SteamVR itself.

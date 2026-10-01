@@ -16,7 +16,7 @@ for part in "${parts[@]}"; do
         godot)    files="tests/test_godot_harness.py tests/test_export_retargeted.py" ;;
         gpu)      files="tests/test_godot_gpu.py" ;;
         retarget) files="tests/test_retarget.py" ;;
-        monado)   files="tests/test_monado_driver.py" ;;
+        monado)   files="tests/test_monado_driver.py tests/test_steamvr_plugin.py" ;;
         xr)       files="tests/test_xr_demo.py" ;;
         *) echo "unknown part $part"; exit 2 ;;
     esac

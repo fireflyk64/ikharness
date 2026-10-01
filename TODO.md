@@ -139,7 +139,12 @@ test it, and how to see whether it is working (the feedback loop).
 - [ ] Closed-source apps (VRChat): Monado OpenVR runtime target + ShaderMotion capture.
 - [ ] BVH and VMD importers in Python (only if the GLB / .tres conversions turn out
       insufficient).
-- [ ] SteamVR plugin: forward generic trackers (upstream `steamvr-monado` only does HMD + hands).
+- [x] SteamVR plugin: generic trackers forwarded with their roles, and the per-eye render target
+      size fixed (upstream reported the whole side-by-side screen, a 2:1 image for a square
+      frustum: the likely "squished" view). `monado/patches/0004`, tested in a mock vrserver
+      (`monado/tests/steamvr_mock_host.cpp`, `tests/test_steamvr_plugin.py`).
+- [!] Try the plugin inside real SteamVR (not installed here): direct-mode / compositor
+      behaviour and VRChat's tracker calibration cannot be checked with the mock host.
 
 ## Done
 

@@ -1,0 +1,284 @@
+diff --git a/src/xrt/state_trackers/steamvr_drv/ovrd_driver.cpp b/src/xrt/state_trackers/steamvr_drv/ovrd_driver.cpp
+index 45bd020..dd9a6e5 100644
+--- a/src/xrt/state_trackers/steamvr_drv/ovrd_driver.cpp
++++ b/src/xrt/state_trackers/steamvr_drv/ovrd_driver.cpp
+@@ -13,6 +13,9 @@
+  */
+ 
+ #include <cstring>
++#include <cctype>
++#include <cstdlib>
++#include <vector>
+ #include <cassert>
+ #include <array>
+ #include <thread>
+@@ -1125,6 +1128,198 @@ private:
+ 	std::thread *m_poseUpdateThread = NULL;
+ };
+ 
++/*
++ *
++ * ikharness: generic trackers. Upstream forwards only the HMD and the two hand controllers;
++ * full body tracking in SteamVR applications needs the trackers as well.
++ *
++ */
++
++static const char *
++ikh_tracker_role_of(const struct xrt_device *xdev)
++{
++	// Longest names first so that "left_foot" is not taken for a shorter role.
++	static const char *roles[] = {"left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_knee",
++	                              "right_knee",    "left_foot",      "right_foot", "waist",       "chest",
++	                              "camera",        "keyboard"};
++	for (size_t i = 0; i < ARRAY_SIZE(roles); i++) {
++		if (strstr(xdev->serial, roles[i]) != NULL || strstr(xdev->str, roles[i]) != NULL) {
++			return roles[i];
++		}
++	}
++	return NULL;
++}
++
++class CDeviceDriver_Monado_Tracker : public vr::ITrackedDeviceServerDriver
++{
++public:
++	CDeviceDriver_Monado_Tracker(struct xrt_device *xdev) : m_xdev(xdev)
++	{
++		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
++		m_ulPropertyContainer = vr::k_ulInvalidPropertyContainer;
++		m_pose = {};
++		m_role = ikh_tracker_role_of(xdev);
++
++		snprintf(m_sModelNumber, MODELNUM_LEN, "[Monado] %s", xdev->str);
++		snprintf(m_sSerialNumber, XRT_DEVICE_NAME_LEN, "%s", xdev->serial);
++
++		// Which pose input to read: the generic tracker pose, else the first input.
++		m_pose_name = xdev->input_count > 0 ? xdev->inputs[0].name : XRT_INPUT_GENERIC_TRACKER_POSE;
++		for (size_t i = 0; i < xdev->input_count; i++) {
++			if (xdev->inputs[i].name == XRT_INPUT_GENERIC_TRACKER_POSE) {
++				m_pose_name = XRT_INPUT_GENERIC_TRACKER_POSE;
++			}
++		}
++
++		ovrd_log("Creating Tracker %s (role %s)\n", xdev->str, m_role != NULL ? m_role : "none");
++		vr::VRServerDriverHost()->TrackedDeviceAdded(m_sSerialNumber, vr::TrackedDeviceClass_GenericTracker, this);
++	}
++	virtual ~CDeviceDriver_Monado_Tracker() {}
++
++	vr::EVRInitError
++	Activate(vr::TrackedDeviceIndex_t unObjectId)
++	{
++		ovrd_log("Activating Tracker SteamVR[%d]\n", unObjectId);
++		if (m_xdev == NULL) {
++			return vr::VRInitError_Init_InterfaceNotFound;
++		}
++
++		m_unObjectId = unObjectId;
++		m_ulPropertyContainer = vr::VRProperties()->TrackedDeviceToPropertyContainer(m_unObjectId);
++
++		// clang-format off
++		vr::VRProperties()->SetInt32Property(m_ulPropertyContainer, vr::Prop_DeviceClass_Int32, vr::TrackedDeviceClass_GenericTracker);
++		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ModelNumber_String, m_sModelNumber);
++		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_SerialNumber_String, m_sSerialNumber);
++		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ManufacturerName_String, "Monado");
++		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_RenderModelName_String, "{htc}vr_tracker_vive_1_0");
++		vr::VRProperties()->SetBoolProperty(m_ulPropertyContainer, vr::Prop_WillDriftInYaw_Bool, false);
++		vr::VRProperties()->SetBoolProperty(m_ulPropertyContainer, vr::Prop_NeverTracked_Bool, false);
++		// clang-format on
++
++		// The role, the two ways SteamVR and applications look for it: the controller type
++		// ("vive_tracker_waist") and the "trackers" section of the SteamVR settings.
++		char type[64];
++		if (m_role != NULL) {
++			snprintf(type, sizeof(type), "vive_tracker_%s", m_role);
++		} else {
++			snprintf(type, sizeof(type), "vive_tracker");
++		}
++		vr::VRProperties()->SetStringProperty(m_ulPropertyContainer, vr::Prop_ControllerType_String, type);
++		if (m_role != NULL) {
++			// TrackerRole_LeftFoot from left_foot.
++			char role[64] = "TrackerRole_";
++			size_t at = strlen(role);
++			bool upper = true;
++			for (const char *c = m_role; *c != '\0' && at + 1 < sizeof(role); c++) {
++				if (*c == '_') {
++					upper = true;
++					continue;
++				}
++				role[at++] = upper ? (char)toupper((unsigned char)*c) : *c;
++				upper = false;
++			}
++			role[at] = '\0';
++
++			char key[XRT_DEVICE_NAME_LEN + 32];
++			snprintf(key, sizeof(key), "/devices/monado/%s", m_sSerialNumber);
++			vr::EVRSettingsError err = vr::VRSettingsError_None;
++			vr::VRSettings()->SetString(vr::k_pch_Trackers_Section, key, role, &err);
++			if (err != vr::VRSettingsError_None) {
++				ovrd_log("Could not store role %s for %s: %d\n", role, key, (int)err);
++			}
++		}
++
++		return vr::VRInitError_None;
++	}
++
++	void
++	Deactivate()
++	{
++		m_unObjectId = vr::k_unTrackedDeviceIndexInvalid;
++	}
++
++	void
++	EnterStandby()
++	{}
++
++	void *
++	GetComponent(const char *pchComponentNameAndVersion)
++	{
++		return NULL;
++	}
++
++	void
++	DebugRequest(const char *pchRequest, char *pchResponseBuffer, uint32_t unResponseBufferSize)
++	{
++		if (unResponseBufferSize >= 1) {
++			pchResponseBuffer[0] = 0;
++		}
++	}
++
++	vr::DriverPose_t
++	GetPose()
++	{
++		m_pose.poseTimeOffset = 0;
++		if (m_xdev == NULL) {
++			m_pose.poseIsValid = false;
++			m_pose.deviceIsConnected = false;
++			m_pose.result = vr::TrackingResult_Uninitialized;
++			return m_pose;
++		}
++
++		xrt_device_update_inputs(m_xdev);
++		bool connected = m_xdev->input_count == 0 || m_xdev->inputs[0].active;
++
++		timepoint_ns now_ns = os_monotonic_get_ns();
++		struct xrt_space_relation rel;
++		xrt_device_get_tracked_pose(m_xdev, m_pose_name, now_ns, &rel);
++
++		struct xrt_pose *offset = &m_xdev->tracking_origin->initial_offset;
++		struct xrt_relation_chain chain = {};
++		m_relation_chain_push_relation(&chain, &rel);
++		m_relation_chain_push_pose_if_not_identity(&chain, offset);
++		m_relation_chain_resolve(&chain, &rel);
++
++		apply_pose(&rel, &m_pose);
++
++		bool tracked = (rel.relation_flags & XRT_SPACE_RELATION_POSITION_VALID_BIT) != 0 &&
++		               (rel.relation_flags & XRT_SPACE_RELATION_ORIENTATION_VALID_BIT) != 0;
++		m_pose.deviceIsConnected = connected;
++		m_pose.poseIsValid = connected && tracked;
++		m_pose.result = m_pose.poseIsValid ? vr::TrackingResult_Running_OK : vr::TrackingResult_Running_OutOfRange;
++
++		vr::HmdQuaternion_t identityquat{1, 0, 0, 0};
++		m_pose.qWorldFromDriverRotation = identityquat;
++		m_pose.qDriverFromHeadRotation = identityquat;
++		m_pose.vecDriverFromHeadTranslation[0] = 0.f;
++		m_pose.vecDriverFromHeadTranslation[1] = 0.f;
++		m_pose.vecDriverFromHeadTranslation[2] = 0.f;
++
++		return m_pose;
++	}
++
++	void
++	RunFrame()
++	{
++		if (m_unObjectId != vr::k_unTrackedDeviceIndexInvalid) {
++			vr::VRServerDriverHost()->TrackedDevicePoseUpdated(m_unObjectId, GetPose(),
++			                                                   sizeof(vr::DriverPose_t));
++		}
++	}
++
++	struct xrt_device *m_xdev;
++
++private:
++	vr::DriverPose_t m_pose;
++	vr::TrackedDeviceIndex_t m_unObjectId;
++	vr::PropertyContainerHandle_t m_ulPropertyContainer;
++	char m_sSerialNumber[XRT_DEVICE_NAME_LEN];
++	char m_sModelNumber[MODELNUM_LEN];
++	const char *m_role = NULL;
++	enum xrt_input_name m_pose_name;
++};
++
+ /*
+  *
+  * Device driver
+@@ -1431,8 +1626,11 @@ CDeviceDriver_Monado::GetRecommendedRenderTargetSize(uint32_t *pnWidth, uint32_t
+ 
+ 
+ 
+-	*pnWidth = m_xdev->hmd->screens[0].w_pixels * fscale;
+-	*pnHeight = m_xdev->hmd->screens[0].h_pixels * fscale;
++	// ikharness: this is the size of ONE eye's render target. The whole screen holds both
++	// eyes side by side, so using it made every eye image twice as wide as its field of view
++	// (2:1 pixels for a square frustum): wasted fill rate, and stretched in every mirror view.
++	*pnWidth = m_xdev->hmd->views[0].display.w_pixels * fscale;
++	*pnHeight = m_xdev->hmd->views[0].display.h_pixels * fscale;
+ 
+ 	ovrd_log("Render Target Size: %dx%d (%fx)\n", *pnWidth, *pnHeight, fscale);
+ }
+@@ -1549,6 +1747,7 @@ private:
+ 	CDeviceDriver_Monado *m_MonadoDeviceDriver = NULL;
+ 	CDeviceDriver_Monado_Controller *m_left = NULL;
+ 	CDeviceDriver_Monado_Controller *m_right = NULL;
++	std::vector<CDeviceDriver_Monado_Tracker *> m_trackers; // ikharness
+ };
+ 
+ CServerDriver_Monado g_serverDriverMonado;
+@@ -1620,6 +1819,20 @@ CServerDriver_Monado::Init(vr::IVRDriverContext *pDriverContext)
+ 		ovrd_log("Added right Controller: %s\n", right_xdev->str);
+ 	}
+ 
++	// ikharness: every generic tracker becomes a SteamVR generic tracker (IKH_STEAMVR_TRACKERS=0 to skip).
++	const char *want_trackers = getenv("IKH_STEAMVR_TRACKERS");
++	if (want_trackers == NULL || strcmp(want_trackers, "0") != 0) {
++		for (size_t i = 0; i < m_xsysd->static_xdev_count; i++) {
++			struct xrt_device *xdev = m_xsysd->static_xdevs[i];
++			if (xdev == NULL || xdev == m_xhmd || xdev == left_xdev || xdev == right_xdev ||
++			    xdev->device_type != XRT_DEVICE_TYPE_GENERIC_TRACKER) {
++				continue;
++			}
++			m_trackers.push_back(new CDeviceDriver_Monado_Tracker(xdev));
++			ovrd_log("Added Tracker: %s\n", xdev->str);
++		}
++	}
++
+ 	return vr::VRInitError_None;
+ }
+ 
+@@ -1635,8 +1848,15 @@ CServerDriver_Monado::Cleanup()
+ 	xrt_system_devices_destroy(&m_xsysd);
+ 	xrt_system_destroy(&m_xsys);
+ 	m_xhmd = NULL;
+-	m_left->m_xdev = NULL;
+-	m_right->m_xdev = NULL;
++	if (m_left != NULL) {
++		m_left->m_xdev = NULL;
++	}
++	if (m_right != NULL) {
++		m_right->m_xdev = NULL;
++	}
++	for (CDeviceDriver_Monado_Tracker *tracker : m_trackers) {
++		tracker->m_xdev = NULL;
++	}
+ 
+ 	if (m_xinst) {
+ 		xrt_instance_destroy(&m_xinst);
+@@ -1696,6 +1916,9 @@ CServerDriver_Monado::RunFrame()
+ 	if (m_right) {
+ 		m_right->RunFrame();
+ 	}
++	for (CDeviceDriver_Monado_Tracker *tracker : m_trackers) {
++		tracker->RunFrame();
++	}
+ 
+ 	// https://github.com/ValveSoftware/openvr/issues/719#issuecomment-358038640
+ 	struct vr::VREvent_t event;

@@ -25,6 +25,8 @@ the reference as rest-relative angular error per bone, reduced to one number per
 | `ikh xr`: Godot OpenXR application on Monado, calibrated by triggers, poses read off the screen | working, tested; same score as in-process |
 | Screen capture from another process (Xvfb framebuffer, `import`, `ffmpeg`), video recording, codec loss | working, tested |
 | `ikh report` (suite / per-bone comparison tables) | working |
+| Monado patches: HTCX tracker roles (OpenXR), SteamVR plugin trackers + per-eye render size | working; plugin tested in a mock vrserver only |
+| Pose-diversity frame selection, export of datasets as GLB / Godot scene, extended suite | working, tested |
 | Unity avatar, shader and harness | blocked on Unity |
 
 ## Numbers (suite `default`: V-Sekai idle/walk + 46 s mocap on the V-Sekai avatar, Perfume dance, MMD dance; 6 and 11 point tracking; weighted degrees, lower is better)

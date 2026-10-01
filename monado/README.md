@@ -130,9 +130,9 @@ The Python client (`python/ikharness/protocol.py`) implements the whole thing in
 |---|---|---|---|
 | OpenXR core | VIEW space, `xrLocateViews` | `/interaction_profiles/valve/index_controller` (or `khr/simple_controller`), grip == aim == device pose | — |
 | OpenXR `XR_MNDX_xdev_space` (Monado) | ✔ | ✔ | ✔ `xrCreateXDevSpaceMNDX`, matched by serial |
-| OpenXR `XR_HTCX_vive_tracker_interaction` | | | ✘ not implemented in Monado's OpenXR layer (marked `ALWAYS_DISABLED` upstream). Godot/Unity harnesses read the socket directly instead |
+| OpenXR `XR_HTCX_vive_tracker_interaction` | | | ✔ with `patches/0003`: `/user/vive_tracker_htcx/role/<role>`, role taken from the tracker's name (upstream marks the extension `ALWAYS_DISABLED`) |
 | OpenVR runtime target (`libopenvr.so` built by Monado) | HMD | Controller class | `TrackedDeviceClass_GenericTracker` |
-| SteamVR plugin (`steamvr-monado`) | ✔ | ✔ | ✘ upstream plugin only forwards HMD + controllers |
+| SteamVR plugin (`steamvr-monado`) | ✔ per-eye render target fixed by `patches/0004` | ✔ | ✔ with `patches/0004`: generic trackers with roles (tested in a mock vrserver, not in SteamVR itself) |
 
 ## Testing
 

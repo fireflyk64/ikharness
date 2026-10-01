@@ -47,6 +47,10 @@ if ! grep -q "OXR_FOR_EACH_HTCX_TRACKER_ROLE" "$MONADO_SRC/src/xrt/state_tracker
     echo "== Applying XR_HTCX_vive_tracker_interaction patch"
     git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0003-htcx-vive-tracker-interaction.patch"
 fi
+if ! grep -q "CDeviceDriver_Monado_Tracker" "$MONADO_SRC/src/xrt/state_trackers/steamvr_drv/ovrd_driver.cpp"; then
+    echo "== Applying SteamVR plugin patch (generic trackers, per-eye render target size)"
+    git -C "$MONADO_SRC" apply "$IKH_MONADO_DIR/patches/0004-steamvr-plugin-trackers-and-eye-size.patch"
+fi
 
 [ "$BUILD" = 1 ] || exit 0
 
