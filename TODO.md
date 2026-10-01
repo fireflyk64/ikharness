@@ -75,6 +75,11 @@ test it, and how to see whether it is working (the feedback loop).
       through OpenXR and the screen vs 16.89° in-process. Controllers also emulate Touch because
       Godot's default action map has no Index profile. (`docs/godot-openxr.md`)
 
+- [x] Found by cross-checking readouts (2026-09-30): the exporter wrote `rest_local` relative to
+      non-humanoid parents (Perfume limbs 9.5 cm off in the harness; suite builtin 16.18° → 15.25°,
+      RenIK 22.10° → 21.54°); T-pose calibration and the head tracker rule disagreed on the view
+      point of rigs without eye bones (9 cm, +9° at 11 points on Perfume). Both fixed, with tests.
+
 ## Next
 
 - [ ] RenIK adapter: tune pole-target feeding for elbow/knee trackers (on the mocap set the
@@ -95,12 +100,18 @@ test it, and how to see whether it is working (the feedback loop).
 - [x] Score "through ShaderMotion": the harness writes ShaderMotion PNGs (CPU encoder in
       GDScript), `ikh eval --readout shadermotion` reads poses back from the pixels and scores
       against the round-tripped reference. GDScript and Python encoders agree to 0.013°.
-- [ ] Report / fix upstream `swing_twist_inv` in V-Sekai/godot-shader-motion (unreliable inverse).
+- [!] Report / fix upstream `swing_twist_inv` in V-Sekai/godot-shader-motion. Cause found
+      (quaternions with w < 0 give swing vectors longer than π, which per-axis wrapping turns
+      into a pose 119° off on average), report and patch written in `docs/upstream/`.
+      Filing it on the upstream repository is the owner's call.
 - [x] `ikh shadermotion encode|decode` for images and folders (video: extract frames with ffmpeg first).
 - [x] ShaderMotion *shader* in Godot (goal 6): skinned recorder mesh (normals + positions only,
       skinned tangents proved unusable) and fragment shader, rendered with software OpenGL under
       Xvfb; `ikh eval --readout shadermotion-gpu`. Matches the Python encoder within 0.026°.
-- [ ] GPU readout with RenIK (non-uniform stretch skews skinned normals) and on the full suite.
+- [x] GPU readout with RenIK and on the full suite: recorder normals moved onto the bone axes
+      (stretched bones read up to 12.6° wrong before, 0.11° now); `ikh suite --readout
+      json|shadermotion|shadermotion-gpu|xr --calibration rules|tpose`. Suite through rendered
+      pixels 20.53° builtin / 27.06° RenIK, through the OpenXR chain 20.68° / 27.06°.
 - [x] Replication: `scripts/setup.sh` (pinned Godot, Python lock, data repos at pinned commits,
       vendored MIT walk clips), `docs/getting-started.md`, `docs/STATUS.md`, `ikh score` and
       `ikh shadermotion encode|decode` for external tools.
@@ -110,7 +121,8 @@ test it, and how to see whether it is working (the feedback loop).
       (H.264 CRF 23: 0.09° mean, 0.26° max; CRF 35: 0.2° / 0.6°; suite score unchanged to 0.02°),
       `ikh xr --video PRESET` records the display live with ffmpeg x11grab and scores the
       recording (identical score). (`docs/shadermotion.md`)
-- [ ] Reports: `ikh report` comparing several runs (markdown table + JSON), per-bone deltas.
+- [x] Reports: `ikh report` compares suite reports and score files (markdown + JSON, deltas
+      against a baseline, largest per-bone changes). (`docs/cli.md`)
 
 ## Later
 

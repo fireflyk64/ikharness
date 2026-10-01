@@ -16,6 +16,11 @@ ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG] [--settle
                                             (software OpenGL on a private Xvfb display)
          [--calibration rules|tpose]        tracker offsets given, or derived from the T-pose frame
 ikh suite [--suite suites/default.json] --ik renik [--build]      the single number
+         [--readout json|shadermotion|shadermotion-gpu|xr]   how solved poses come back; xr = whole OpenXR chain per entry
+         [--calibration rules|tpose]
+ikh report [FILES...] [--baseline N] [--out report.md] [--json report.json]
+                                            compare suite reports (default out/suite/*.json) and score files:
+                                            markdown tables with deltas, per-bone changes
 ikh negative --dataset D --ik renik          perturbation ladder, fails if not monotonic
 ikh service                                  start monado-service headless (foreground)
 ikh probe                                    read poses back through OpenXR

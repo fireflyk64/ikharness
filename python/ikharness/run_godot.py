@@ -59,6 +59,10 @@ def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, ti
     if result_path.exists():
         result_path.unlink()
     res = run_guarded(cmd, timeout=timeout)
+    if shadermotion_gpu_dir is not None and not result_path.exists() and "Unable to create DisplayServer" in res.log:
+        # The private X display did not come up (seen once on a heavily loaded machine): one more try.
+        print("harness: no display, retrying once", file=sys.stderr)
+        res = run_guarded(cmd, timeout=timeout)
     log = res.log
     if res.killed or res.returncode != 0 or not result_path.exists():
         raise RuntimeError(f"harness failed (rc={res.returncode}, killed={res.killed or 'no'}, peak {res.peak_rss_mb:.0f} MB):\n{log[-4000:]}")

@@ -9,6 +9,7 @@ only looks at the screen.
 
 ```sh
 scripts/ikh xr --dataset out/datasets/vsk_walk.json --tracker-set 6pt --ik builtin
+scripts/ikh suite --ik renik --readout xr          # every suite entry through this chain (about 5 minutes)
 # builtin+openxr+screen / 6pt: body score 16.67 deg (weighted 16.18), end effectors 1.8 cm, 45 frames
 # xr: 45 frames off the screen (fbdir), 0.50 s/frame, 0 unstable; ... peak memory demo 372 MB, service 85 MB
 # xr: screenshots in out/xr/vsk_walk_builtin_6pt.screen
@@ -116,15 +117,16 @@ runtime instead of Monado it runs as a three-point demo (no driver, no body trac
   and swapped hand trackers (`--perturb hands_swap:1`) score more than 5° worse.
 * Same solver, same data, two transports (2026-09-30):
 
-  | Run | in-process (`ikh eval --readout shadermotion-gpu --calibration tpose`) | through OpenXR and the screen (`ikh xr`) |
+  | Run | in-process (`--readout shadermotion-gpu --calibration tpose`) | through OpenXR and the screen (`--readout xr`) |
   |---|---|---|
-  | walk, builtin, 6pt, 45 frames | 16.89° | 16.67° |
-  | mini walk, builtin, 6pt | 15.57° | 15.20° |
-  | mini walk, builtin, 11pt | 16.48° | 16.06° |
-  | mini walk, RenIK, 6pt | 18.73° | 18.73° |
+  | whole suite, builtin (`ikh suite`) | 20.53° | 20.68° |
+  | whole suite, RenIK (`ikh suite`) | 27.06° | 27.06° |
+  | walk, builtin, 6pt, 45 frames (body score) | 16.89° | 16.67° |
+  | mini walk, RenIK, 6pt (body score) | 18.73° | 18.73° |
 
-  The small differences are settle time (the harness reads after 8 frames, the screen
-  readout waits until the picture rests).
+  RenIK is deterministic per frame and agrees on all eight suite entries to 0.01°; the
+  built-in solver iterates across frames, so settle time shows (the harness reads after
+  8 frames, the screen readout waits until the picture rests).
 * Look at `out/xr/<run>.screen/frame_00000.png`: an orange avatar on a checkered floor with
   the slot columns on the left. `out/xr/<run>.demo.log` and `.monado.log` hold the logs.
 

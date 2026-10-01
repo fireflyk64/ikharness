@@ -10,6 +10,7 @@
     ikh calibrate --dataset D --tracker-set 6pt      # T-pose, hold 1 s, pull both triggers
     ikh xr --dataset D --tracker-set 6pt --ik builtin   # service + Godot OpenXR demo + calibration + screen readout
     ikh screenshot (--fbdir DIR | --display :N) --out shot.png
+    ikh report [FILES...] [--out report.md]          # compare suite runs / score files, per-bone deltas
     ikh video roundtrip --images DIR --skeleton D    # what video codecs do to ShaderMotion poses
     ikh video extract --video V --out-dir DIR
     ikh service | probe | replay | devices | pose | drop | ping
@@ -102,6 +103,9 @@ def cmd_dataset(args) -> int:
         dev = rest_conformance(sk)
         worst = sorted(dev.items(), key=lambda kv: -kv[1])[:3]
         print(f"  rest vs humanoid profile: max {worst[0][1]:.2f} deg ({worst[0][0]})" + ("" if worst[0][1] < 0.5 else "  <-- NOT in profile convention"))
+        if sk.rest_chain_error_m > 1e-4:
+            print(f"  rest_local chain is {sk.rest_chain_error_m * 100:.1f} cm off rest_global (exported before 2026-09-30 from a rig "
+                  f"with extra bones); rest_global is used, rebuild the dataset to clean the file")
         for s in d.sources:
             print(f"  clip {s.get('id')}: {Path(str(s.get('path'))).name} '{s.get('animation')}' {float(s.get('length', 0)):.1f}s hips_mode={s.get('hips_mode')}")
         return 0
@@ -115,7 +119,8 @@ def cmd_eval(args) -> int:
 
 def cmd_suite(args) -> int:
     from .suite import run_suite
-    rep = run_suite(Path(args.suite), args.ik, build=args.build, settle=args.settle)
+    rep = run_suite(Path(args.suite), args.ik, build=args.build, settle=args.settle, readout=args.readout,
+                    calibration=args.calibration)
     print(rep.summary())
     return 0
 
@@ -189,6 +194,7 @@ PASS_THROUGH = {
     "xr": "ikharness.xr",
     "screenshot": "ikharness.screen",
     "video": "ikharness.video",
+    "report": "ikharness.report",
 }
 DRIVER_CMDS = ("probe", "devices", "ping", "pose", "drop")
 
@@ -199,7 +205,7 @@ def _pass_through(argv) -> int:
     if not argv:
         return -1
     cmd = argv[0]
-    if cmd in PASS_THROUGH and "-h" not in argv[1:] and "--help" not in argv[1:] or (cmd in PASS_THROUGH and len(argv) > 1):
+    if cmd in PASS_THROUGH:
         return importlib.import_module(PASS_THROUGH[cmd]).main(argv[1:])
     if cmd == "calibrate":
         from .replay import main as replay_main
@@ -229,6 +235,7 @@ def main(argv=None) -> int:
     sub.add_parser("shadermotion", help="encode reference frames to images / decode images to results (see --help)")
     sub.add_parser("xr", help="whole OpenXR chain unattended: Monado, the Godot XR demo, calibration, poses read off the screen")
     sub.add_parser("screenshot", help="grab an Xvfb framebuffer or an X display to a PNG")
+    sub.add_parser("report", help="compare suite reports and score files as markdown tables with deltas")
     sub.add_parser("video", help="codec loss on ShaderMotion frames (roundtrip), frames out of a recording (extract)")
 
     d = sub.add_parser("dataset", help="build or inspect reference datasets")
@@ -248,6 +255,9 @@ def main(argv=None) -> int:
     s.add_argument("--ik", default="renik")
     s.add_argument("--build", action="store_true", help="build missing datasets from their recipes")
     s.add_argument("--settle", type=int, default=None)
+    s.add_argument("--readout", default="json", choices=["json", "shadermotion", "shadermotion-gpu", "xr"],
+                   help="result file, ShaderMotion pixels (CPU / rendered), or xr: OpenXR demo on Monado read off the screen")
+    s.add_argument("--calibration", default="rules", choices=["rules", "tpose"])
     s.set_defaults(fn=cmd_suite)
 
     n = sub.add_parser("negative", help="perturb tracker inputs and check the score degrades")

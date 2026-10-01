@@ -1,0 +1,36 @@
+--- a/shader_motion/core/humanoid/transform_util.gd
++++ b/shader_motion/core/humanoid/transform_util.gd
+@@ static func swing_twist_inv(q: Quaternion) -> Vector3:
+ static func swing_twist_inv(q: Quaternion) -> Vector3:
++	# q and -q are the same rotation; with w >= 0 the swing angle stays within [0, pi],
++	# so the returned muscles are in range and survive clamping / wrapping to [-1, 1].
++	if q.w < 0.0:
++		q = -q
+ 	var a: float = q.x
+ 	var b: float = q.y
+ 	var c: float = q.z
+ 	var d: float = q.w
+@@
+ 	if twistX >= 1.0:
+ 		twistX = 1.0
+ 	if a < 0:
+ 		twistX *= -1
+-	if d < 0:
+-		twistX *= -1
+ 
+ 	var twistW: float = sqrt(1 - twistX * twistX)
+@@
+ 	var sinc: float = 0.5 if abs(yz) < 1e-8 else sin(yz/2)/yz
+-	twistX = 1e-8 if is_zero_approx(twistX) else twistX
+-	twistW = 1e-8 if is_zero_approx(twistW) else twistW
+ 
+ 	# Finally, we solve for y and z given b and c:
+ 	# b = (z * twistX + y * twistW) * sinc
+ 	# c = (z * twistW - y * twistX) * sinc
+-	var y: float = (b / twistX - c / twistW) / (twistW / twistX + twistX / twistW) / sinc
+-	var z: float = (b / twistW + c / twistX) / (twistX / twistW + twistW / twistX) / sinc
++	# With twistW^2 + twistX^2 = 1 this 2x2 system solves without any division by a twist term:
++	var y: float = (b * twistW - c * twistX) / sinc
++	var z: float = (b * twistX + c * twistW) / sinc
+ 
+ 	return Vector3(x, y, z)
