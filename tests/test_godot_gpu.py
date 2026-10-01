@@ -48,3 +48,25 @@ def test_shader_matches_reference_encoder(godot, tmp_path):
         assert np.allclose(hips["position"], want["position"], atol=1e-3)
         assert np.allclose(hips["rot_y"], want["rot_y"], atol=1e-3) and np.allclose(hips["rot_z"], want["rot_z"], atol=1e-3)
         assert abs(hips["scale"] - want["scale"]) < 1e-3
+
+
+def test_shader_reads_stretched_bones_like_the_result_file(godot, tmp_path):
+    """RenIK stretches arms that cannot reach (non-uniform bone scale, sheared children).
+
+    The recorder's normals lie along each bone's own axes so the shader recovers the same
+    rotation as Basis.get_rotation_quaternion(); with model-axis normals the hands and
+    fingers below a stretched forearm came out up to 12 degrees off.
+    """
+    from ikharness.shadermotion.readout import decode_directory, roundtrip_frames
+    from ikharness.video import compare_frames
+
+    evaluate(DATA / "mini_walk.json", "6pt", ik="renik", settle=6, out_dir=tmp_path, readout="shadermotion-gpu",
+             perturb="hands_offset:0.3")
+    dataset = Dataset.load(DATA / "mini_walk.json")
+    stem = tmp_path / "mini_walk_renik_6pt_hands_offset-0.3"
+    solved = HarnessResult.load(f"{stem}.result.json")
+    rendered = decode_directory(f"{stem}.shadermotion-gpu", dataset.skeleton, count=3)
+    encoded = roundtrip_frames(solved.frames, dataset.skeleton, propagate_leftovers=False)
+    diff = compare_frames(encoded, rendered)
+    assert diff.frames == 3
+    assert diff.max_deg < 0.3, diff

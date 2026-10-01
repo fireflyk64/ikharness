@@ -23,13 +23,22 @@ static func build_skeleton(sk: Dictionary) -> Array:
 		skel.set_bone_rest(0, Transform3D.IDENTITY)
 	for b in bones:
 		skel.add_bone(b["name"])
+	# Local rests come from the global ones where the file has them: datasets exported before
+	# 2026-09-30 carry rest_local relative to non-humanoid parents that are not in the file.
+	var globals := {}
+	for b in bones:
+		if b.has("rest_global"):
+			globals[b["name"]] = xform_of(b["rest_global"])
 	var ids: Array[int] = []
 	for b in bones:
 		var idx := skel.find_bone(b["name"])
 		var parent: String = b.get("parent", "")
 		var pidx := skel.find_bone(parent) if parent != "" else (skel.find_bone("Root") if not has_root else -1)
 		skel.set_bone_parent(idx, pidx)
-		skel.set_bone_rest(idx, xform_of(b["rest_local"]))
+		var rest := xform_of(b["rest_local"])
+		if globals.has(b["name"]) and (parent == "" or globals.has(parent)):
+			rest = globals[b["name"]] if parent == "" else globals[parent].affine_inverse() * globals[b["name"]]
+		skel.set_bone_rest(idx, rest)
 		ids.append(idx)
 	skel.reset_bone_poses()
 	return [skel, ids]

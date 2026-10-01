@@ -63,6 +63,12 @@ TRACKER_SETS: Dict[str, List[str]] = {
 }
 
 
+#: View point of an avatar without eye bones, relative to the head joint in the rest pose
+#: (meters, avatar space: up and forward). The head tracker sits there and T-pose calibration
+#: assumes the headset is there; godot/harness/calibration.gd uses the same value.
+DEFAULT_VIEW_OFFSET = (0.0, 0.08, 0.09)
+
+
 def head_rule_for(skeleton: Skeleton) -> TrackerRule:
     """Head tracker at the eye midpoint, derived from the skeleton's eye bones when present."""
     if skeleton.has("LeftEye") and skeleton.has("RightEye") and skeleton.has("Head"):
@@ -72,7 +78,7 @@ def head_rule_for(skeleton: Skeleton) -> TrackerRule:
         return TrackerRule("head", "Head", offset=tuple(float(v) for v in local))
     # No eye bones: a generic 8 cm up, 9 cm forward (+Z is forward in this convention).
     head = skeleton.bones["Head"].rest_global
-    local = head.inverse().apply(head.position + np.array([0.0, 0.08, 0.09]))
+    local = head.inverse().apply(head.position + np.array(DEFAULT_VIEW_OFFSET))
     return TrackerRule("head", "Head", offset=tuple(float(v) for v in local))
 
 

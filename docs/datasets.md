@@ -15,6 +15,13 @@ rewrites the clip tracks. Four datasets feed the default suite.
 
 * `skeleton`: humanoid bones with `rest_local` and `rest_global` T-pose transforms, hips /
   head / eye heights, source model name. Limb lengths derive from the rest joint positions.
+  `parent` is the nearest *humanoid* ancestor and `rest_local` is relative to it, so the
+  chain of `rest_local` adds up to `rest_global`. `rest_global` is authoritative: the Python
+  loader and the Godot harness rebuild local rests from it. (Until 2026-09-30 the exporter
+  wrote `rest_local` relative to the bone's actual parent; on the Perfume rig, which has
+  extra bones in the chain, the harness skeleton's limbs were up to 9.5 cm off the
+  reference and the suite scored it 3.6° to 3.8° worse than it deserved. `ikh dataset info`
+  reports such files.)
 * `frames[]`: for each sampled frame the global transform of every humanoid bone, plus the
   source clip id and time.
 * `sources[]`: clip path, clip name, length, hips scaling used.

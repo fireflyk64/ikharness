@@ -190,11 +190,15 @@ func run() -> int:
 		var parent := skel.get_bone_parent(b)
 		while parent >= 0 and not humanoid_names.has(skel.get_bone_name(parent)):
 			parent = skel.get_bone_parent(parent)
+		# Local rest relative to the *humanoid* parent: rigs with extra bones in between
+		# (BVH-style, MMD) would otherwise give a chain that does not add up to rest_global.
+		var rest_global := skel.get_bone_global_rest(b)
+		var rest_local := rest_global if parent < 0 else skel.get_bone_global_rest(parent).affine_inverse() * rest_global
 		bones_out.append({
 			"name": name,
 			"parent": skel.get_bone_name(parent) if parent >= 0 else "",
-			"rest_local": xform(skel.get_bone_rest(b)),
-			"rest_global": xform(skel.get_bone_global_rest(b)),
+			"rest_local": xform(rest_local),
+			"rest_global": xform(rest_global),
 		})
 	if bone_ids.is_empty():
 		return fail("model skeleton has no Godot humanoid bone names")

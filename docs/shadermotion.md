@@ -95,23 +95,28 @@ scores from those pixels.
 
 ![a rendered ShaderMotion frame](img/shadermotion_gpu_frame.png)
 
-* **One triangle per bone**, three vertices, using only what skinning reliably transforms:
-  A (bone): normal +X, position = joint. C (bone): normal +Y. B (parent): normal +X, position =
-  joint + Y. After skinning that yields `R_d(bone)·x`, `R_d(bone)·y`, `R_d(parent)·x`, and
-  `R_d(parent)·y` as the difference of two skinned positions, where `R_d = pose · rest⁻¹` is
-  exactly the rest-relative rotation the scorer uses.
+* **One triangle per bone**, three vertices, using only what skinning reliably transforms.
+  With `G` a bone's rest global rotation and `M` its posed global basis, skinning multiplies
+  by `M·G⁻¹`, so data laid along the bone's own rest axes comes out as columns of `M`:
+  A (bone): normal `G_bone·x`, position = joint. C (bone): normal `G_bone·y`. B (parent):
+  normal `G_parent·x`, position = joint + `G_parent·y`. After skinning that yields
+  `M_bone·x`, `M_bone·y`, `M_parent·x`, and `M_parent·y` as the difference of two skinned
+  positions. The fragment shader orthonormalizes x first, then y, which is what Godot's
+  `Basis.get_rotation_quaternion()` does, so bones that a solver stretched or sheared read
+  exactly like the harness's result file.
 * **No geometry shader needed.** Each vertex multiplies its data by a role flag; the
   fragment shader divides by (or normalizes away) the interpolated barycentric weight. The
   triangle is oversized (corners at −1 and 4 in slot-rectangle units) so every weight stays
   ≥ 1/5 inside the rectangle; fragments outside are discarded.
-* **Per-bone constants** ride in `CUSTOM0..3`: `L = preQ⁻¹·G_parent⁻¹`, `R = G_bone·postQ`,
+* **Per-bone constants** ride in `CUSTOM0..3`: `L = preQ⁻¹`, `R = postQ`,
   signs with locked axes zeroed, first slot and channel map. The fragment shader computes
-  `swing = L · (R_d(parent)⁻¹ · R_d(bone)) · R`, the swing-twist inverse, and the Gray-curve
-  color of the square it is drawing. Hips: world position (wide float hi/lo) and the posed
+  `swing = L · (P_parent⁻¹ · P_bone) · R` with `P` the posed global rotations, the
+  swing-twist inverse, and the Gray-curve color of the square it is drawing. Hips: world position (wide float hi/lo) and the posed
   basis columns, mirrored in X.
 * **Accuracy**: against the Python encoder on the same solved poses, all 100 angle slots
   agree within **0.026°** (mean 0.002°), hips position within 0.1 mm, avatar scale exact
-  (`tests/test_godot_gpu.py`).
+  (`tests/test_godot_gpu.py`). Over the whole suite, both solvers, 6 and 11 points: bone
+  rotations within 0.11° (mean 0.02°), hips within 0.4 mm.
 * **Cost**: about 330 MB and a few seconds per run under llvmpipe (`docs/resources.md`).
 
 Findings worth keeping (`godot/gpu_probe/` has the probes):
@@ -125,8 +130,13 @@ Findings worth keeping (`godot/gpu_probe/` has the probes):
   0.03° on the one interpolated digit.
 * A shader cannot pass one bone's unrepresentable twist to its children, so the GPU path
   scores against a reference round-tripped without leftover propagation.
-* Non-uniform bone scale (RenIK's stretch) skews skinned normals slightly; the GPU path has
-  only been validated with the `builtin` adapter.
+* **Normals must lie along the bone's own axes.** The first working recorder used model-axis
+  normals (+X, +Y), which gave `R_d = pose·rest⁻¹` directly and matched the Python encoder
+  to 0.03° with the built-in solver. With RenIK, which stretches arms that cannot reach
+  (non-uniform bone scale, sheared children), the same mesh read hands and fingers up to
+  12.6° wrong (mean 0.9° on the MMD dance): a non-uniform scale skews any direction that is
+  not one of its axes. Bone-axis normals fixed it (0.11° worst case over the suite);
+  `test_shader_reads_stretched_bones_like_the_result_file` forces the stretch.
 
 ### Candidates found upstream
 

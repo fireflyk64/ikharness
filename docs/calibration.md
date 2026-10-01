@@ -14,8 +14,13 @@ From the one calibration frame of tracker poses `T_role`:
 1. **Root yaw** from the right-to-left line of a tracker pair (hands, else feet, else
    elbows): `forward = left × up`. No device's local axes are involved, so it works for any
    controller or tracker convention. With only a headset, its −Z view direction is used.
-2. **Root position**: the headset sits over the avatar's eye point (eye-bone midpoint), feet
-   on the floor (`y = 0`). `height_ratio = headset height / avatar eye height` is reported.
+2. **Root position**: the headset sits over the avatar's eye point (eye-bone midpoint; for a
+   rig without eye bones 8 cm above and 9 cm in front of the head joint, `DEFAULT_VIEW_OFFSET`,
+   the same point the head tracker rule uses), feet on the floor (`y = 0`).
+   `height_ratio = headset height / avatar eye height` is reported.
+   A wrong view point is not harmless: the root ends up `d` meters off, and every bone
+   target is then conjugated by that offset, an error of up to `2d` once the user turns
+   around. On the Perfume dance (no eye bones) a 9 cm mismatch cost 9° at 11 points.
 3. **Offsets**: `offset_role = (root · bone_rest)⁻¹ · T_role`, one rigid transform per tracker.
 4. Every later frame: `bone_target = root⁻¹ · tracker · offset⁻¹` in avatar space.
 

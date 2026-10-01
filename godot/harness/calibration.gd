@@ -19,13 +19,19 @@ static func role_bone(skeleton: Skeleton3D, role: String) -> int:
 			return b
 	return -1
 
-# The avatar's view point in its rest pose: eye midpoint, or the head joint.
+# View point of an avatar without eye bones, relative to the head joint in the rest pose
+# (the same value as DEFAULT_VIEW_OFFSET in python/ikharness/trackers.py).
+const DEFAULT_VIEW_OFFSET := Vector3(0.0, 0.08, 0.09)
+
+# The avatar's view point in its rest pose: eye midpoint, or the default above and in front
+# of the head joint. Calibration assumes the headset sits there; an error of d meters turns
+# into a position error of up to 2 d on every tracker once the user turns around.
 static func eye_point(skeleton: Skeleton3D) -> Vector3:
 	var le := skeleton.find_bone("LeftEye")
 	var re := skeleton.find_bone("RightEye")
 	if le >= 0 and re >= 0:
 		return 0.5 * (skeleton.get_bone_global_rest(le).origin + skeleton.get_bone_global_rest(re).origin)
-	return skeleton.get_bone_global_rest(skeleton.find_bone("Head")).origin
+	return skeleton.get_bone_global_rest(skeleton.find_bone("Head")).origin + DEFAULT_VIEW_OFFSET
 
 # Yaw from the right-to-left line of a tracker pair (independent of device axes), position
 # from the headset over the avatar's eye point, feet on the floor.

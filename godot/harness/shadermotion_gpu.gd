@@ -2,21 +2,26 @@
 # ShaderMotion works inside closed applications where only meshes and shaders exist.
 #
 # One triangle per bone, using only skinned NORMALs and positions (skinned TANGENTs arrive
-# garbled in the Compatibility renderer, see godot/gpu_probe/tangent_probe.gd):
-#   A: bone,   normal +X, position = joint            -> R_d(bone) x, posed joint
-#   C: bone,   normal +Y                              -> R_d(bone) y
-#   B: parent, normal +X, position = joint + Y        -> R_d(parent) x, posed joint + R_d(parent) y
-# where R_d = pose * rest^-1 is the rest-relative rotation skinning applies. The parent's
-# second axis is B.position - A.position (the joint is rigidly attached to the parent).
+# garbled in the Compatibility renderer, see godot/gpu_probe/tangent_probe.gd). With G the
+# rest global rotation of a bone and M its posed global basis (rotation, and scale or shear
+# when a solver stretches bones), skinning multiplies by M * G^-1, so data placed along the
+# bone's own rest axes comes out as columns of M:
+#   A: bone,   normal G_bone x,   position = joint               -> M_bone x, posed joint
+#   C: bone,   normal G_bone y                                   -> M_bone y
+#   B: parent, normal G_parent x, position = joint + G_parent y  -> M_parent x, posed joint + M_parent y
+# The fragment shader orthonormalizes (x first, then y), which is exactly what Godot's
+# Basis.get_rotation_quaternion() does, so stretched bones (RenIK) read the same as in the
+# harness's result file. Model-axis normals would be skewed by a non-uniform scale.
+# The parent's second axis is B.position - A.position (the joint is rigidly attached to the parent).
 # Godot has no geometry shaders, so every vertex multiplies its data by a role flag and the
 # fragment shader divides by / normalizes away the interpolated barycentric weight, which
 # makes both bones' rotations available per fragment. Per-bone constants ride in CUSTOM0..3 (identical on
 # the three vertices, so interpolation leaves them untouched):
-#   CUSTOM0 = L = preQ^-1 * G_parent^-1      CUSTOM1 = R = G_bone * postQ
+#   CUSTOM0 = L = preQ^-1                    CUSTOM1 = R = postQ
 #   CUSTOM2 = (sign.xyz incl. (1,-1,-1) and 0 for locked axes, kind)   kind 1 = hips
 #   CUSTOM3 = (first slot, channel of slot 0, 1, 2; -1 = none)
-# so that swing = L * (R_d_parent^-1 * R_d_bone) * R, exactly the CPU encoder's
-# preQ^-1 * local * postQ. No twist leftovers are passed between bones (a shader cannot).
+# so that swing = L * (P_parent^-1 * P_bone) * R with P the posed global rotations, exactly
+# the CPU encoder's preQ^-1 * local * postQ. No twist leftovers are passed between bones (a shader cannot).
 extends RefCounted
 
 const HumanTrait := preload("res://addons/humanoid/human_trait.gd")
@@ -51,11 +56,11 @@ static func build_recorder(skeleton: Skeleton3D, hips_height: float) -> MeshInst
 		var parent := skeleton.get_bone_parent(b)
 		if parent < 0:
 			continue
-		var g_b := skeleton.get_bone_global_rest(b).basis.get_rotation_quaternion()
-		var g_p := skeleton.get_bone_global_rest(parent).basis.get_rotation_quaternion()
+		var g_b := skeleton.get_bone_global_rest(b).basis.orthonormalized()
+		var g_p := skeleton.get_bone_global_rest(parent).basis.orthonormalized()
 		var k0: Array; var k1: Array; var k2: Array; var k3: Array
 		if is_hips:
-			k0 = _q(g_b)
+			k0 = [0.0, 0.0, 0.0, 1.0]
 			k1 = [0.0, 0.0, 0.0, 1.0]
 			k2 = [hips_height, 0.0, 0.0, 1.0]
 			k3 = [0.0, -1.0, -1.0, -1.0]
@@ -68,8 +73,8 @@ static func build_recorder(skeleton: Skeleton3D, hips_height: float) -> MeshInst
 			for i in range(3):
 				if mfb[i] == -1:
 					sgn[i] = 0.0
-			k0 = _q((pre.inverse() * g_p.inverse()).normalized())
-			k1 = _q((g_b * inv_post.inverse()).normalized())
+			k0 = _q(pre.inverse().normalized())
+			k1 = _q(inv_post.inverse().normalized())
 			k2 = [sgn.x, sgn.y, sgn.z, 0.0]
 			var entry: Array = table[name]
 			var ch: Array = entry[1]
@@ -77,9 +82,9 @@ static func build_recorder(skeleton: Skeleton3D, hips_height: float) -> MeshInst
 		var origin := skeleton.get_bone_global_rest(b).origin
 		# [rest position, bone, role uv, normal]
 		var corner := [
-			[origin, b, Vector2(1, 0), Vector3(1, 0, 0)],
-			[origin + Vector3(0, 1, 0), parent, Vector2(0, 1), Vector3(1, 0, 0)],
-			[origin, b, Vector2(0, 0), Vector3(0, 1, 0)],
+			[origin, b, Vector2(1, 0), g_b.x],
+			[origin + g_p.y, parent, Vector2(0, 1), g_p.x],
+			[origin, b, Vector2(0, 0), g_b.y],
 		]
 		for c in corner:
 			verts.append(c[0])
@@ -305,7 +310,7 @@ void fragment() {
 		// Hips: world position in meters and the posed basis, mirrored in X for Unity.
 		vec3 p = v_pos_a.xyz / v_pos_a.w;
 		vec3 pu = vec3(-p.x, p.y, p.z) / 2.0;
-		mat3 g = rb * mat_from_quat(v_c0);
+		mat3 g = rb;
 		vec3 ry = normalize(vec3(-g[1].x, g[1].y, g[1].z));
 		vec3 rz = normalize(vec3(-g[2].x, g[2].y, g[2].z));
 		float scale = v_c2.x;

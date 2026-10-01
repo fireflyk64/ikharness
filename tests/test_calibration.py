@@ -81,3 +81,24 @@ def test_root_from_feet_or_head_without_hands(dataset):
     yaw = solve_root(sk, head).rotation
     expect = quat_from_axis_angle((0, 1, 0), math.radians(-60 + 180))
     assert quat_angle(yaw, expect) < 1e-5
+
+
+def test_rig_without_eye_bones_uses_the_same_view_point_as_the_head_tracker(dataset):
+    """A BVH-style rig has no eyes; calibration and the head tracker rule must agree on the view point.
+
+    When they did not (head joint vs 9 cm in front of it) the root came out 9 cm off, which a
+    turning dance turned into +9 degrees at 11 points (Perfume set, 2026-09-30).
+    """
+    from ikharness.dataset import Skeleton
+    sk = dataset.skeleton
+    eyeless = Skeleton(bones={n: b for n, b in sk.bones.items() if n not in ("LeftEye", "RightEye")},
+                       order=[n for n in sk.order if n not in ("LeftEye", "RightEye")],
+                       **{k: v for k, v in vars(sk).items() if k not in ("bones", "order")})
+    assert not eyeless.has("LeftEye")
+    cal = calibrate(eyeless, tpose_trackers(eyeless, ROLES))
+    assert np.linalg.norm(cal.root.position) < 1e-6
+    assert abs(cal.height_ratio - 1.0) < 1e-6
+    f = dataset.frames[1]
+    tr = place_trackers(f, eyeless, ROLES, rules_for(eyeless))
+    for role in ROLES:
+        assert close(cal.bone_target(role, tr[role]), f.bones[role_bone(eyeless, role)]), role

@@ -56,10 +56,12 @@ def tpose_trackers(skeleton: Skeleton, roles: Sequence[str], rules: Optional[Map
 
 
 def eye_point(skeleton: Skeleton) -> np.ndarray:
-    """The avatar's view point in its rest pose: eye midpoint, or the head joint without eye bones."""
+    """The avatar's view point in its rest pose: eye midpoint, or a default above and in front
+    of the head joint for rigs without eye bones (the same point the head tracker rule uses)."""
     if skeleton.has("LeftEye") and skeleton.has("RightEye"):
         return 0.5 * (skeleton.bones["LeftEye"].rest_global.position + skeleton.bones["RightEye"].rest_global.position)
-    return skeleton.bones["Head"].rest_global.position.copy()
+    from .trackers import DEFAULT_VIEW_OFFSET
+    return skeleton.bones["Head"].rest_global.position + np.array(DEFAULT_VIEW_OFFSET)
 
 
 @dataclass

@@ -48,6 +48,9 @@ class Skeleton:
     eye_height: float
     source_model: str = ""
     convention: str = "godot-humanoid"
+    #: Largest distance (m) between a file's rest_local chain and its rest_global when loaded.
+    #: Not 0 for datasets exported before 2026-09-30 from rigs with non-humanoid bones in the chain.
+    rest_chain_error_m: float = 0.0
 
     def has(self, name: str) -> bool:
         return name in self.bones
@@ -89,15 +92,20 @@ class Skeleton:
     def from_dict(d: dict) -> "Skeleton":
         bones: Dict[str, Bone] = {}
         order: List[str] = []
+        chain: Dict[str, Transform] = {}
+        chain_error = 0.0
         for b in d["bones"]:
-            bones[b["name"]] = Bone(
-                name=b["name"],
-                parent=b.get("parent", ""),
-                rest_local=Transform(b["rest_local"]["position"], b["rest_local"]["rotation"]),
-                rest_global=Transform(b["rest_global"]["position"], b["rest_global"]["rotation"]),
-            )
+            parent = b.get("parent", "")
+            file_local = Transform(b["rest_local"]["position"], b["rest_local"]["rotation"])
+            rest_global = Transform(b["rest_global"]["position"], b["rest_global"]["rotation"])
+            # rest_global is authoritative; rest_local is rebuilt relative to the humanoid parent.
+            chain[b["name"]] = chain[parent] * file_local if parent in chain else file_local
+            chain_error = max(chain_error, float(np.linalg.norm(chain[b["name"]].position - rest_global.position)))
+            rest_local = bones[parent].rest_global.inverse() * rest_global if parent in bones else rest_global
+            bones[b["name"]] = Bone(name=b["name"], parent=parent, rest_local=rest_local, rest_global=rest_global)
             order.append(b["name"])
         return Skeleton(
+            rest_chain_error_m=chain_error,
             bones=bones,
             order=order,
             hips_height=float(d["hips_height"]),

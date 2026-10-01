@@ -106,3 +106,25 @@ def test_scoring_detects_rotation_and_missing(dataset):
     assert report.frames_missing == 1 and report.frames_scored == 2
     assert all(abs(s.angle_max_deg - 10.0) < 1e-6 for s in report.bones.values())
     assert "body score 10.00 deg" in report.summary()
+
+
+def test_rest_local_is_rebuilt_from_rest_global():
+    """Files exported from rigs with extra bones used to carry rest_local relative to a bone
+    that is not in the file (Perfume: limbs up to 9.5 cm off). rest_global is authoritative."""
+    import json
+
+    from ikharness.dataset import Skeleton
+    doc = json.loads((Path(__file__).parent / "data" / "mini_walk.json").read_text())["skeleton"]
+    clean = Skeleton.from_dict(doc)
+    assert clean.rest_chain_error_m < 1e-5
+    for b in doc["bones"]:
+        if b["name"] == "LeftLowerArm":
+            b["rest_local"]["position"] = [0.0, 0.5, 0.0]   # as if relative to some other parent
+    broken = Skeleton.from_dict(doc)
+    assert broken.rest_chain_error_m > 0.1
+    for name in clean.order:
+        assert np.allclose(broken.bones[name].rest_local.position, clean.bones[name].rest_local.position, atol=1e-6), name
+        parent = broken.bones[name].parent
+        if parent:
+            chained = broken.bones[parent].rest_global * broken.bones[name].rest_local
+            assert np.allclose(chained.position, broken.bones[name].rest_global.position, atol=1e-9)
