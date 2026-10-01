@@ -179,3 +179,46 @@ def test_second_client_reads_state(client):
         assert set(state) == set(client.device_names)
         # Both stay usable.
         assert client.ping().frame_id == 555 and reader.ping().frame_id == 555
+
+
+def test_calibration_gesture_reaches_openxr(client):
+    """T-pose, hold, both triggers: an OpenXR client sees the T-pose first, then both triggers rise together."""
+    import threading
+    import time
+    from pathlib import Path
+
+    from ikharness.calibration import run_calibration_gesture
+    from ikharness.dataset import Dataset
+    from ikharness.replay import tpose_device_poses
+    from ikharness.trackers import TRACKER_SETS, rules_for
+
+    dataset = Dataset.load(Path(__file__).parent / "data" / "mini_walk.json")
+    roles = TRACKER_SETS["6pt"]
+    poses = tpose_device_poses(dataset, roles, rules_for(dataset.skeleton))
+    with HeadlessSession() as s:
+        with IkhClient(port=IKH_PORT) as feeder:
+            t = threading.Thread(target=run_calibration_gesture, args=(feeder, poses),
+                                 kwargs=dict(hold=0.4, press=0.5, frame_id=900, log=lambda *_: None))
+            t.start()
+            seen_tpose_before_press = False
+            pressed = False
+            deadline = time.monotonic() + 5.0
+            while time.monotonic() < deadline:
+                s.sync_actions()
+                left, right = s.trigger("left"), s.trigger("right")
+                if left > 0.9 and right > 0.9:
+                    pressed = True
+                    # At the moment of the press the headset is where the T-pose puts it, looking along -Z.
+                    loc = s.locate(s.view, s.now())
+                    assert_pose_close(loc, poses["hmd"], "hmd at calibration")
+                    break
+                if left < 0.1 and right < 0.1 and client.ping().frame_id == 900:
+                    seen_tpose_before_press = True
+                time.sleep(0.02)
+            t.join()
+            assert pressed and seen_tpose_before_press
+            s.sync_actions()
+            assert s.trigger("left") < 0.01 and s.trigger("right") < 0.01
+    # The T-pose head pose is upright and faces stage -Z.
+    assert abs(poses["hmd"].position[1] - dataset.skeleton.eye_height) < 1e-6
+    assert abs(abs(poses["hmd"].orientation[3]) - 1.0) < 1e-6

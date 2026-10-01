@@ -29,18 +29,29 @@ from .dataset import Dataset
 from .mathutil import Transform, quat_angle
 from .protocol import DEFAULT_HOST, DEFAULT_PORT, IkhClient, Pose
 from .testfile import build_test_file
-from .trackers import TRACKER_SETS, place_trackers, rules_for, to_openxr_stage
+from .trackers import TRACKER_SETS, place_trackers, rules_for, to_openxr_device
 
 ROLE_TO_DEVICE = {"head": "hmd", "left_hand": "left_hand", "right_hand": "right_hand"}
 
 
 def frame_poses(dataset: Dataset, index: int, roles, rules) -> Dict[str, Pose]:
     trackers = place_trackers(dataset.frames[index], dataset.skeleton, roles, rules)
+    return device_poses(trackers)
+
+
+def device_poses(trackers) -> Dict[str, Pose]:
+    """Dataset-space tracker transforms -> driver poses keyed by device name."""
     out: Dict[str, Pose] = {}
     for role, t in trackers.items():
-        s = to_openxr_stage(t)
+        s = to_openxr_device(role, t)
         out[ROLE_TO_DEVICE.get(role, role)] = Pose(tuple(float(v) for v in s.position), tuple(float(v) for v in s.rotation))
     return out
+
+
+def tpose_device_poses(dataset: Dataset, roles, rules) -> Dict[str, Pose]:
+    """Driver poses for the reference rig standing in its T-pose (the calibration frame)."""
+    from .calibration import tpose_trackers
+    return device_poses(tpose_trackers(dataset.skeleton, roles, rules))
 
 
 def verify_through_openxr(client: IkhClient, sent: Dict[str, Pose]) -> float:
@@ -80,6 +91,10 @@ def main(argv=None) -> int:
     p.add_argument("--port", type=int, default=DEFAULT_PORT)
     p.add_argument("--verify", action="store_true", help="read poses back through OpenXR after each frame")
     p.add_argument("--frames", type=int, default=0, help="only replay the first N frames")
+    p.add_argument("--calibrate", action="store_true",
+                   help="first strike the T-pose, hold it, and pull both triggers so the application calibrates")
+    p.add_argument("--calibrate-hold", type=float, default=1.0, help="seconds to hold the T-pose before the triggers")
+    p.add_argument("--calibrate-only", action="store_true", help="perform the calibration gesture and exit")
     args = p.parse_args(argv)
 
     dataset = Dataset.load(args.dataset)
@@ -95,6 +110,13 @@ def main(argv=None) -> int:
         # Devices outside the tracker set are reported as disconnected so the app sees the right set.
         unused = {d.name: Pose.disconnected() for d in client.devices if d.name not in {ROLE_TO_DEVICE.get(r, r) for r in roles}}
         frame_id = 0
+        if args.calibrate or args.calibrate_only:
+            from .calibration import run_calibration_gesture
+            poses = tpose_device_poses(dataset, roles, rules)
+            poses.update(unused)
+            run_calibration_gesture(client, poses, hold=args.calibrate_hold)
+            if args.calibrate_only:
+                return 0
         while True:
             for i in range(count):
                 poses = frame_poses(dataset, i, roles, rules)

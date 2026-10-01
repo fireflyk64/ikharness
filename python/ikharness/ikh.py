@@ -7,6 +7,7 @@
     ikh negative --dataset D --ik renik
     ikh score --dataset D --result R [--through-shadermotion]
     ikh shadermotion encode|decode ...
+    ikh calibrate --dataset D --tracker-set 6pt      # T-pose, hold 1 s, pull both triggers
     ikh service | probe | replay | devices | pose | drop | ping
 """
 
@@ -193,6 +194,9 @@ def _pass_through(argv) -> int:
     cmd = argv[0]
     if cmd in PASS_THROUGH and "-h" not in argv[1:] and "--help" not in argv[1:] or (cmd in PASS_THROUGH and len(argv) > 1):
         return importlib.import_module(PASS_THROUGH[cmd]).main(argv[1:])
+    if cmd == "calibrate":
+        from .replay import main as replay_main
+        return replay_main(list(argv[1:]) + ["--calibrate-only"])
     if cmd == "dataset" and len(argv) > 1 and argv[1] == "build":
         from .build_dataset import main as build_main
         return build_main(argv[2:])
@@ -214,6 +218,7 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("status", help="what is installed, built and running").set_defaults(fn=cmd_status)
+    sub.add_parser("calibrate", help="T-pose calibration gesture through the Monado driver (see ikh replay --help)")
     sub.add_parser("shadermotion", help="encode reference frames to images / decode images to results (see --help)")
 
     d = sub.add_parser("dataset", help="build or inspect reference datasets")

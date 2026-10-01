@@ -73,3 +73,16 @@ def test_shadermotion_pixel_readout_matches_python_encoder(godot, tmp_path):
             assert math.degrees(quat_angle(a.bones[bone].rotation, b.bones[bone].rotation)) < 0.1, bone
     # Reading through pixels costs accuracy but stays in the same league as the direct readout.
     assert report.weighted_score_deg < report.json_readout.weighted_score_deg + 8.0
+
+
+def test_tpose_calibration_matches_rules_and_absorbs_mounting(godot, tmp_path):
+    """Deriving offsets from the T-pose frame equals being told them, and absorbs strapped-on trackers."""
+    args = dict(ik="builtin", settle=6, out_dir=tmp_path)
+    rules, _ = evaluate(DATA / "mini_walk.json", "11pt", **args)
+    tpose, log = evaluate(DATA / "mini_walk.json", "11pt", calibration="tpose", **args)
+    assert "T-pose calibration, root yaw" in log
+    assert abs(tpose.weighted_score_deg - rules.weighted_score_deg) < 0.01
+    mounted_rules, _ = evaluate(DATA / "mini_walk.json", "11pt", perturb="tracker_mount:0.08", **args)
+    mounted_tpose, _ = evaluate(DATA / "mini_walk.json", "11pt", perturb="tracker_mount:0.08", calibration="tpose", **args)
+    assert mounted_rules.weighted_score_deg > rules.weighted_score_deg + 2.0   # uncalibrated mounting hurts
+    assert abs(mounted_tpose.weighted_score_deg - rules.weighted_score_deg) < 0.01   # calibration removes it

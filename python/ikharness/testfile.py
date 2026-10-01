@@ -51,9 +51,15 @@ def build_test_file(dataset: Dataset, tracker_set: str, path, rules: Optional[Di
             "source": f.source,
             "trackers": {role: dict(zip(("position", "rotation"), t.as_lists())) for role, t in tr.items()},
         })
+    # The T-pose calibration frame: trackers while the reference rig stands in its rest pose.
+    from .calibration import rest_frame
+    tpose = place_trackers(rest_frame(dataset.skeleton), dataset.skeleton, roles, rules)
+    if perturb is not None:
+        tpose = perturb(tpose, -1)
     doc = {
         "format": TRACKERS_FORMAT,
         "dataset": str(dataset_path),
+        "calibration": {"pose": "tpose", "trackers": {role: dict(zip(("position", "rotation"), t.as_lists())) for role, t in tpose.items()}},
         "tracker_set": tracker_set,
         "roles": roles,
         "skeleton": dataset.skeleton.to_dict(),

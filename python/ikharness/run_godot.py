@@ -41,7 +41,8 @@ def gpu_launcher() -> list:
 
 
 def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, timeout: float = 1800.0,
-                shadermotion_dir: Optional[Path] = None, shadermotion_gpu_dir: Optional[Path] = None) -> str:
+                shadermotion_dir: Optional[Path] = None, shadermotion_gpu_dir: Optional[Path] = None,
+                calibration: str = "rules") -> str:
     godot = os.environ.get("GODOT", "godot")
     if shadermotion_gpu_dir is not None:
         # A real (software) renderer on a private virtual display; nothing appears on the desktop.
@@ -49,7 +50,8 @@ def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, ti
                                 "--audio-driver", "Dummy", "--resolution", "64x64", "-s", "harness.gd", "--"]
     else:
         cmd = [godot, "--headless", "--path", str(HARNESS), "-s", "harness.gd", "--"]
-    cmd += ["--trackers", str(trackers_path.resolve()), "--out", str(result_path.resolve()), "--ik", ik, "--settle", str(settle)]
+    cmd += ["--trackers", str(trackers_path.resolve()), "--out", str(result_path.resolve()), "--ik", ik, "--settle", str(settle),
+            "--calibration", calibration]
     if shadermotion_dir is not None:
         cmd += ["--shadermotion-dir", str(shadermotion_dir.resolve())]
     if shadermotion_gpu_dir is not None:
@@ -64,18 +66,23 @@ def run_harness(trackers_path: Path, result_path: Path, ik: str, settle: int, ti
 
 
 def evaluate(dataset_path: Path, tracker_set: str, ik: str = "renik", settle: int = 8,
-             out_dir: Path = ROOT / "out" / "results", perturb: Optional[str] = None, readout: str = "json"):
+             out_dir: Path = ROOT / "out" / "results", perturb: Optional[str] = None, readout: str = "json",
+             calibration: str = "rules"):
     """Run one evaluation. ``perturb`` is ``name:magnitude[:seed]`` applied to the tracker inputs.
 
     ``readout="shadermotion"`` makes the harness also write every solved pose as a
     ShaderMotion PNG, reads the poses back from those pixels and scores them against the
     reference passed through the same format (so the format's floor cancels).
+    ``calibration="tpose"`` makes the harness derive tracker offsets from the T-pose
+    calibration frame instead of being told the tracker rules.
     ``readout="shadermotion-gpu"`` does the same with frames *rendered* by the recorder mesh
     and shader (software OpenGL on a private Xvfb display).
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     dataset = Dataset.load(dataset_path)
     tag = f"_{perturb.replace(':', '-')}" if perturb else ""
+    if calibration != "rules":
+        tag += f"_cal-{calibration}"
     stem = f"{dataset_path.stem}_{ik}_{tracker_set}{tag}"
     trackers_path = out_dir / f"{stem}.trackers.json"
     result_path = out_dir / f"{stem}.result.json"
@@ -98,7 +105,7 @@ def evaluate(dataset_path: Path, tracker_set: str, ik: str = "renik", settle: in
             old.unlink()
     elif readout != "json":
         raise ValueError(f"unknown readout {readout!r} (json, shadermotion, shadermotion-gpu)")
-    log = run_harness(trackers_path, result_path, ik, settle,
+    log = run_harness(trackers_path, result_path, ik, settle, calibration=calibration,
                       shadermotion_dir=None if gpu else sm_dir, shadermotion_gpu_dir=sm_dir if gpu else None)
     result = HarnessResult.load(result_path)
     report = score(dataset, result.frames, implementation=result.implementation, tracker_set=tracker_set,
@@ -134,10 +141,12 @@ def main(argv=None) -> int:
     p.add_argument("--readout", default="json", choices=["json", "shadermotion", "shadermotion-gpu"],
                    help="read solved poses from the result JSON, from CPU-encoded ShaderMotion pixels, or from frames "
                         "rendered by the recorder shader (software OpenGL under Xvfb)")
+    p.add_argument("--calibration", default="rules", choices=["rules", "tpose"],
+                   help="rules: the harness is told each tracker's offset; tpose: it derives them from the T-pose frame")
     p.add_argument("--verbose", action="store_true")
     args = p.parse_args(argv)
     report, log = evaluate(Path(args.dataset), args.tracker_set, args.ik, args.settle, Path(args.out_dir), args.perturb,
-                           args.readout)
+                           args.readout, args.calibration)
     if args.verbose:
         print(log)
     print(report.summary())

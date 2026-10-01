@@ -116,5 +116,18 @@ def to_openxr_stage(t: Transform) -> Transform:
     return Transform(quat_rotate(q, t.position), quat_mul(q, t.rotation))
 
 
+def to_openxr_device(role: str, t: Transform) -> Transform:
+    """Dataset-space tracker pose -> the pose an OpenXR device of that role reports in stage space.
+
+    Besides the stage yaw, the headset's local frame is turned so that it looks along its
+    own -Z in the direction the avatar faces (our head tracker frame has +Z forward).
+    Controllers and body trackers keep the bone frame: applications calibrate those.
+    """
+    s = to_openxr_stage(t)
+    if role == "head":
+        return Transform(s.position, quat_mul(s.rotation, yaw180()))
+    return s
+
+
 def from_openxr_stage(t: Transform) -> Transform:
     return to_openxr_stage(t)  # the yaw is its own inverse

@@ -7,6 +7,8 @@
 # Usage:
 #   godot --headless --path godot/harness -s harness.gd -- \
 #       --trackers /abs/test.json --out /abs/result.json [--ik renik] [--settle 8] [--max-fps 240]
+#       [--calibration rules|tpose]     rules: tracker offsets are given; tpose: derived from the test
+#                                       file's T-pose calibration frame, as a real application would
 #       [--shadermotion-dir /abs/dir]   also write each solved pose as a ShaderMotion PNG
 #       [--shadermotion-gpu-dir /abs/dir]  the same through the recorder mesh + shader (needs a renderer,
 #                                          e.g. xvfb-run godot --display-driver x11 --rendering-driver opengl3)
@@ -20,8 +22,9 @@ const RESULT_FORMAT := "ikharness-result/1"
 
 const ShaderMotionEncoder := preload("res://shadermotion_encoder.gd")
 const ShaderMotionGPU := preload("res://shadermotion_gpu.gd")
+const Calibration := preload("res://calibration.gd")
 
-var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": "", "shadermotion-gpu-dir": ""}
+var opts := {"trackers": "", "out": "", "ik": "renik", "settle": 8, "max-fps": 240, "shadermotion-dir": "", "shadermotion-gpu-dir": "", "calibration": "rules"}
 
 var test: Dictionary
 var skeleton: Skeleton3D
@@ -57,6 +60,22 @@ func _init():
 	skeleton = build_skeleton(test["skeleton"])
 	scene_root.add_child(skeleton)
 	skeleton.skeleton_updated.connect(_on_skeleton_updated)
+	if String(opts["calibration"]) == "tpose":
+		if not test.has("calibration"):
+			printerr("harness: --calibration tpose needs a calibration block in the test file")
+			quit(1)
+			return
+		var tpose := {}
+		for role in test["calibration"]["trackers"]:
+			tpose[role] = xform_of(test["calibration"]["trackers"][role])
+		calibration = Calibration.calibrate(skeleton, tpose)
+		var root: Transform3D = calibration["root"]
+		print("harness: T-pose calibration, root yaw %.2f deg at (%.3f, %.3f), height ratio %.3f, %d trackers" % [
+			rad_to_deg(root.basis.get_euler().y), root.origin.x, root.origin.z, calibration["height_ratio"], calibration["offsets"].size()])
+	elif String(opts["calibration"]) != "rules":
+		printerr("harness: unknown --calibration ", opts["calibration"])
+		quit(1)
+		return
 	if opts["shadermotion-gpu-dir"] != "":
 		if DisplayServer.get_name() == "headless":
 			printerr("harness: --shadermotion-gpu-dir needs a renderer; run without --headless (xvfb-run ... --rendering-driver opengl3)")
@@ -138,6 +157,8 @@ func tracker_xform(frame: Dictionary, role: String) -> Transform3D:
 # Turn a tracker pose into the pose of the bone it is attached to, by undoing
 # the rule offset (what a calibration with trackers placed on the bones yields).
 func bone_target_xform(frame: Dictionary, role: String) -> Transform3D:
+	if not calibration.is_empty():
+		return Calibration.bone_target(calibration, role, tracker_xform(frame, role))
 	var rule: Dictionary = test["rules"][role]
 	var off: Array = rule["offset"]
 	var rot: Array = rule["rotation"]
@@ -155,6 +176,7 @@ func has_tracker(role: String) -> bool:
 var last_captured: Dictionary = {}
 var last_globals: Dictionary = {}
 var gpu_viewport: SubViewport = null
+var calibration: Dictionary = {}
 
 func _on_skeleton_updated() -> void:
 	var bones := {}
@@ -236,6 +258,7 @@ func finish() -> void:
 		"tracker_set": test.get("tracker_set", ""),
 		"roles": test.get("roles", []),
 		"settle_frames": opts["settle"],
+		"calibration": opts["calibration"],
 		"godot": Engine.get_version_info()["string"],
 		"frames": results,
 	}

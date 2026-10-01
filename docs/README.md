@@ -13,6 +13,7 @@ The task list lives in [`../TODO.md`](../TODO.md).
 | [scoring.md](scoring.md) | The metric, the single number, negative tests | working |
 | [godot-harness.md](godot-harness.md) | Running IK implementations in Godot | working (RenIK, Godot built-ins, baseline) |
 | [cli.md](cli.md) | The `ikh` driver command | working |
+| [calibration.md](calibration.md) | T-pose calibration: math, remote gesture, tests | working |
 | [godot-openxr.md](godot-openxr.md) | Godot as an OpenXR client of the Monado driver | planned |
 | [shadermotion.md](shadermotion.md) | Bone rotations as pixels: Godot port, capture, video | planned |
 | [unity.md](unity.md) | Unity avatar, shader, harness | blocked (no Unity) |

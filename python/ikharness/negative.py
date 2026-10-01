@@ -99,7 +99,11 @@ TRACKER_PERTURBATIONS: Dict[str, str] = {
     "waist_offset": "move the waist tracker MAG meters sideways (+X)",
     "noise": "gaussian position noise with sigma MAG meters on every tracker",
     "rot_noise": "random rotation noise with sigma MAG degrees on every tracker",
+    "tracker_mount": "body trackers (not head/hands) strapped on with a fixed random offset of MAG meters and up to "
+                     "30 degrees; applied to the calibration frame too, so T-pose calibration must absorb it",
 }
+
+HEAD_AND_HANDS = ("head", "left_hand", "right_hand")
 
 
 def make_tracker_perturbation(spec: str) -> TrackerHook:
@@ -107,12 +111,30 @@ def make_tracker_perturbation(spec: str) -> TrackerHook:
     if name not in TRACKER_PERTURBATIONS:
         raise KeyError(f"unknown tracker perturbation {name!r}; known: {sorted(TRACKER_PERTURBATIONS)}")
     rng = np.random.default_rng(seed)
+    mounts: Dict[str, Transform] = {}
+
+    def mount_for(role: str) -> Transform:
+        # One fixed rigid transform per role, deterministic in (seed, role).
+        if role not in mounts:
+            r = np.random.default_rng([seed, sum(role.encode())])
+            direction = r.normal(size=3)
+            direction /= np.linalg.norm(direction)
+            mounts[role] = Transform(direction * mag, quat_from_axis_angle(r.normal(size=3), math.radians(r.uniform(-30, 30))))
+        return mounts[role]
 
     def shift(t: Transform, delta) -> Transform:
         return Transform(t.position + np.asarray(delta, dtype=float), t.rotation)
 
     def hook(trackers: Dict[str, Transform], index: int) -> Dict[str, Transform]:
+        """``index`` is the frame number, or -1 for the T-pose calibration frame."""
         tr = dict(trackers)
+        if name == "tracker_mount":
+            for r in tr:
+                if r not in HEAD_AND_HANDS:
+                    tr[r] = tr[r] * mount_for(r)
+            return tr
+        if index < 0:
+            return tr  # runtime disturbances do not touch the calibration frame
         if name == "hands_offset":
             for r in ("left_hand", "right_hand"):
                 if r in tr:

@@ -14,11 +14,13 @@ ikh eval --dataset D --tracker-set 6pt --ik renik [--perturb NAME:MAG] [--settle
                                             read solved poses from JSON, from CPU-encoded ShaderMotion
                                             pixels, or from frames rendered by the recorder shader
                                             (software OpenGL on a private Xvfb display)
+         [--calibration rules|tpose]        tracker offsets given, or derived from the T-pose frame
 ikh suite [--suite suites/default.json] --ik renik [--build]      the single number
 ikh negative --dataset D --ik renik          perturbation ladder, fails if not monotonic
 ikh service                                  start monado-service headless (foreground)
 ikh probe                                    read poses back through OpenXR
-ikh replay --dataset D --tracker-set 6pt [--verify] [--loop]      stream into Monado
+ikh replay --dataset D --tracker-set 6pt [--verify] [--loop] [--calibrate]     stream into Monado
+ikh calibrate --dataset D --tracker-set 6pt  T-pose, hold 1 s, pull both triggers (through the driver)
 ikh devices | ikh pose DEV x y z [qx qy qz qw] | ikh drop DEV     poke the driver
 ```
 

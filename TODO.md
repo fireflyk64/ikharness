@@ -65,8 +65,10 @@ test it, and how to see whether it is working (the feedback loop).
       `GET_STATE`, so both triggers can be pushed remotely and a demo can read tracker poses.
 - [x] Guard knows about process slots (`IKH_MIN_FREE_PIDS`, `ikh status`), after the container hit
       its pids limit through unreaped zombies.
-- [ ] T-pose calibration: reference rig in T-pose, wait a second, push both triggers
-      (`ikh calibrate`, harness calibration mode, tests).
+- [x] T-pose calibration: reference rig in T-pose, wait a second, push both triggers.
+      `ikh calibrate` / `ikh replay --calibrate` (gesture through the driver), harness
+      `--calibration tpose` (root + per-tracker offsets derived from the T-pose frame),
+      `tracker_mount` perturbation absorbed by calibration. (`docs/calibration.md`)
 - [ ] Godot OpenXR demo on Monado with the ShaderMotion recorder on screen, `ikh xr` automation
       (service + demo + replay + calibration), reading pixels off the screen.
 
